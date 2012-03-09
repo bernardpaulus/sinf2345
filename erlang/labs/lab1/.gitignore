@@ -1,0 +1,5 @@
+# compiled files
+*.beam
+
+# vim temp files
+*.swp
