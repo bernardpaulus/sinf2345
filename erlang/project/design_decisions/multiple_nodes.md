@@ -1,5 +1,5 @@
-We should have first a script, or whatever that starts up the nodes and the ATMs
-ath the right place
+We should have first a script, or whatever that starts up the erlang nodes and the ATMs
+at the right place
 
 Note about node discovery
 =========================
