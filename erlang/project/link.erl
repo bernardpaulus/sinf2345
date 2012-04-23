@@ -2,10 +2,11 @@
 
 -module(link).
 -import(utils, [for_each/2]).
--compile(export_all).
+-export([damn_simple_link/2]).
 
-
-% creates a damn_simple_link between two nodes (they can be equals)
+% create a damn_simple_link between two nodes (they can be equals)
+%
+% @param: Erl_Node1,Erl_Node2 : atoms, names of valid nodes
 % @post: the current process has a name
 % @return: [{Name1, Erl_Node1}, {Name2, Erl_Node2}]
 damn_simple_link(Erl_Node1, Erl_Node2) ->

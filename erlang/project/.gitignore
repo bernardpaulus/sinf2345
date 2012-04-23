@@ -1,5 +1,7 @@
 # compiled files
 *.beam
+# erlang crash dumps
+*.dump
 
 # vim temp files
 *.swp
