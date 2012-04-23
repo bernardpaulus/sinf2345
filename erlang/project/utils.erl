@@ -63,8 +63,23 @@ for_each([H | T], Fun_1Arg, Acc) -> for_each(T, Fun_1Arg, [Fun_1Arg(H) | Acc]).
 
 
 % register a unique name for this process, if it isn't registered yet
+%
 % keeps a 'seeded' entry in the proc database if random was previously seeded.
-register_unique(Basename, Pid) -> register_unique(Basename, Pid, 0).
+% try first to get the Basename
+%
+% returns the name of this process (the new or the old, if it is already
+% registered
+register_unique(Basename, Pid) -> 
+    try register(Basename, Pid), Basename
+    catch error:badarg -> 
+        % check whether process has already been registered
+        case lists:filter(fun(N) -> whereis(N) == Pid end, registered()) of
+            [] -> register_unique(Basename, Pid, 0);
+            [Proc_Name] -> Proc_Name
+        end
+    end.
+
+% register a unique name with a random part
 register_unique(Basename, Pid, Start) ->
     case get(seeded) of
         true -> true;
@@ -76,11 +91,6 @@ register_unique(Basename, Pid, Start) ->
     Name = list_to_atom(lists:concat([Basename, "_", Start,
         "_", random:uniform(trunc(math:pow(2,64)))])),
     try register(Name, Pid), Name
-    catch error:badarg -> 
-        % check whether process has already been registered
-        case lists:filter(fun(N) -> whereis(N) == self() end, registered()) of
-            [] -> register_unique(Basename, Pid, Start + 1);
-            [Proc_Name] -> Proc_Name
-        end
+    catch error:badarg -> register_unique(Basename, Pid, Start + 1)
     end.
 
