@@ -2,15 +2,23 @@
 
 -module(link).
 -import(lists, [map/2, partition/2, foreach/2]).
+
+% use this
 -export([fair_loss_link/2,
-         perfect_link/2]).
+         perfect_link/2,
+         stubborn_link/2
+         ]).
+
 -export([damn_simple_link_register/2,
         damn_simple_link_startup/1,
         damn_simple_link_loop/2,
         fair_loss_link_end/2,
-        fair_loss_link_loop/3
+        fair_loss_link_loop/3,
+        stubborn_link_end/2,
+        stubborn_link_loop/4
         ]).
 
+% TODO refactor
 
 % create a damn_simple_link between two nodes (they can be equals)
 %
@@ -52,7 +60,7 @@ damn_simple_link_startup(Spawner_process) ->
 damn_simple_link_loop(Other, Up_List) -> 
     receive
         % register the process whishing to receive notifications
-        {register, Pid} ->
+        {subscribe, Pid} ->
             damn_simple_link_loop(Other, [Pid | Up_List]);
         % receive a message from the upper layer
         {send, Msg} ->
@@ -85,17 +93,18 @@ fair_loss_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
     
 
 % One end of a fair loss link
+% get a name, give it to spawner, 
 fair_loss_link_end(Pid, Spawner_process) ->
     Name = utils:register_unique(fair_loss_link, self()),
     Spawner_process ! {Name, node()}, 
         % send how to access this process to the spawner
-    Pid ! {register, {Name, node()}},
+    Pid ! {subscribe, {Name, node()}},
     fair_loss_link_loop(Pid, [], []).
 
 % loop when no messages are delayed/reordered
 fair_loss_link_loop(Down, Up_List, []) ->
     receive
-        {register, Pid} ->
+        {subscribe, Pid} ->
             fair_loss_link_loop(Down, [Pid | Up_List], []);
         % message from upper layer
         {send, Msg} ->
@@ -127,7 +136,7 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
     {TTL_Zero, Buffer} = partition(fun({TTL, _}) ->  TTL == 0 end, TTL_Dec),
     foreach(fun({0, Msg}) -> Down ! {send, Msg} end, TTL_Zero),
     receive
-        {register, Pid} ->
+        {subscribe, Pid} ->
             fair_loss_link_loop(Down, [Pid | Up_List], Buffer);
         % message from upper layer
         {send, Msg} ->
@@ -149,3 +158,45 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
     after 100 -> % maximum time per iteration
         fair_loss_link_loop(Down, Up_List, Buffer)
     end.
+
+% creates a stubborn link
+% @return: [{Stubborn_name1, Erl_Node1}, {Stubborn_name2, Erl_Node2}]
+stubborn_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
+    utils:subroutine(fun() ->
+        Name = utils:register_unique(tmp_name, self()),
+        spawn(Erl_Node1, ?MODULE, stubborn_link_end, 
+                    [{Name1, Erl_Node1}, {Name, node()}]),
+        receive Pid1 -> Pid1 end,
+        spawn(Erl_Node2, ?MODULE, stubborn_link_end, 
+                    [{Name2, Erl_Node2}, {Name, node()}]),
+        receive Pid2 -> Pid2 end,
+        [Pid1, Pid2]
+    end).
+
+% stubborn_link init
+stubborn_link_end(Pid, Spawner_process) ->
+    Name = utils:register_unique(stubborn_link, self()),
+    Spawner_process ! {Name, node()}, 
+        % send how to access this process to the spawner
+    Pid ! {subscribe, {Name, node()}},
+    Delta = 100,
+    erlang:send_after(Delta, self(), {timeout}),
+    stubborn_link_loop(Pid, [], Delta, sets:new()).
+
+stubborn_link_loop(Down, Up_List, Delta, Sent) ->
+    receive
+        {subscribe, Pid} ->
+            stubborn_link_loop(Down, [Pid | Up_List], Delta, Sent);
+        {timeout} ->
+            foreach(fun(Msg) -> Down ! {send, Msg} end, sets:to_list(Sent)),
+            erlang:send_after(Delta, self(), {timeout}),
+            stubborn_link_loop(Down, Up_List, Delta, Sent);
+        {send, Msg} ->
+            Down ! {send, Msg},
+            stubborn_link_loop(Down, Up_List, Delta, 
+                                sets:add_element(Msg, Sent));
+        {deliver, Msg} ->
+            foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
+            stubborn_link_loop(Down, Up_List, Delta, Sent)
+    end.
+
