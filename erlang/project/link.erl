@@ -175,26 +175,32 @@ stubborn_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
 
 % stubborn_link init
 stubborn_link_end(Pid, Spawner_process) ->
+    % send how to access this process to the spawner
     Name = utils:register_unique(stubborn_link, self()),
     Spawner_process ! {Name, node()}, 
-        % send how to access this process to the spawner
+    % ask for deliver notifications
     Pid ! {subscribe, {Name, node()}},
+    % start timer
     Delta = 100,
     erlang:send_after(Delta, self(), {timeout}),
     stubborn_link_loop(Pid, [], Delta, sets:new()).
 
 stubborn_link_loop(Down, Up_List, Delta, Sent) ->
     receive
+        % register interested processes
         {subscribe, Pid} ->
             stubborn_link_loop(Down, [Pid | Up_List], Delta, Sent);
+        % periodic resent
         {timeout} ->
             foreach(fun(Msg) -> Down ! {send, Msg} end, sets:to_list(Sent)),
             erlang:send_after(Delta, self(), {timeout}),
             stubborn_link_loop(Down, Up_List, Delta, Sent);
+        % upper layer request
         {send, Msg} ->
             Down ! {send, Msg},
             stubborn_link_loop(Down, Up_List, Delta, 
                                 sets:add_element(Msg, Sent));
+        % receive a message from Down
         {deliver, Msg} ->
             foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
             stubborn_link_loop(Down, Up_List, Delta, Sent)
