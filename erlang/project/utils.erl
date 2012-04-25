@@ -7,6 +7,10 @@
         time_of_the_day/0, 
         dummy_receiver/0,
         dummy_receiver_loop/0,
+        echo_proc/0,
+        echo_loop/0,
+        recv/0,
+        recv/1,
         register_unique/2,
         seed_once/0,
         subroutine/1, subroutine/2, subroutine/3
@@ -47,7 +51,7 @@ time_of_the_day() ->
 
 
 % a dummy receiver that does nothing besides printing the received messages
-% returns it's pid
+% @returns it's pid
 dummy_receiver() -> spawn(fun() -> dummy_receiver_loop() end).
 
 dummy_receiver_loop() ->
@@ -57,12 +61,36 @@ dummy_receiver_loop() ->
     end.
 
 
+% an echo process:
+% upon reception of {Pid, Msg}, sends Msg to the target
+% @return it's Pid
+echo_proc() -> spawn(fun() -> echo_loop() end).
+
+% loop while receiving {Pid, Msg},
+% and sending Msg to Pid
+echo_loop() ->
+    receive {Pid, Msg} when is_pid(Pid) ->
+        Pid ! Msg,
+        echo_loop()
+    end.
+
+
+% receive any message
+% @return the first message, or the atom undefined if there isn't any
+recv() -> recv(0).
+
+% receive any message before Time elapsed
+% Tip: the atom infinity as argument waits infinitely long for a message
+% @return the first message received before Time, 
+%   or the atom undefined if there wasn't any.
+recv(Time) -> receive Msg -> Msg after Time -> undefined end.
+
+
 % register a unique name for this process, if it isn't registered yet
 %
-% keeps a 'seeded' entry in the proc database if random was previously seeded.
 % try first to get the Basename
 %
-% returns the name of this process (the old name if it is already
+% @returns the name of Pid (the old name if it is already
 % registered, or a new unique one otherwise).
 register_unique(Basename, Pid) -> 
     try register(Basename, Pid), Basename
@@ -74,11 +102,10 @@ register_unique(Basename, Pid) ->
         end
     end.
 
-% register a unique name with a random part
+% register a unique name
+% @return the name
 register_unique(Basename, Pid, Start) ->
-    seed_once(),
-    Name = list_to_atom(lists:concat([Basename, "_", Start,
-        "_", random:uniform(trunc(math:pow(2,64)))])),
+    Name = list_to_atom(lists:concat([Basename, "_", Start])),
     try register(Name, Pid), Name
     catch error:badarg -> register_unique(Basename, Pid, Start + 1)
     end.

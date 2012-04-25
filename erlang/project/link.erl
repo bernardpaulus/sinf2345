@@ -76,7 +76,6 @@ damn_simple_link_loop(Other, Up_List) ->
 % Perfect link
 perfect_link(Erl_Node1, Erl_Node2) -> damn_simple_link(Erl_Node1, Erl_Node2).
 
-
 % Fair-loss link in both directions
 % @return: [{Fair_loss_name1, Erl_Node1}, {Fair_loss_name2, Erl_Node2}]
 fair_loss_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
@@ -101,32 +100,9 @@ fair_loss_link_end(Pid, Spawner_process) ->
     Pid ! {subscribe, {Name, node()}},
     fair_loss_link_loop(Pid, [], []).
 
-% loop when no messages are delayed/reordered
-fair_loss_link_loop(Down, Up_List, []) ->
-    receive
-        {subscribe, Pid} ->
-            fair_loss_link_loop(Down, [Pid | Up_List], []);
-        % message from upper layer
-        {send, Msg} ->
-            P = random:uniform(),
-            if 
-                P < 0.1 -> % Msg loss
-                    fair_loss_link_loop(Down, Up_List, []);
-                P < 0.2 -> % Msg reordering/delay
-                    TTL = random:uniform(5) + 1, % time to live = number of
-                        % iterations before sending
-                    fair_loss_link_loop(Down, Up_List, 
-                                        [{TTL, Msg}]);
-                true -> 
-                    Down ! {send, Msg},
-                    fair_loss_link_loop(Down, Up_List, [])
-            end;
-        {deliver, Msg} ->
-            foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
-            fair_loss_link_loop(Down, Up_List, [])
-    end;
-
-% loop when messages are delayed
+% loop each 100 ms when messages are delayed/reordered, upon message reception
+% otherwise
+%
 % TTL = time to live = number of iterations before sending
 % the idea is to reorder/delay messages quickly when messages are exchanged
 % quickly
@@ -135,7 +111,13 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
     TTL_Dec = map(fun({TTL, Msg}) -> {TTL - 1, Msg} end, Old_Buffer),
     {TTL_Zero, Buffer} = partition(fun({TTL, _}) ->  TTL == 0 end, TTL_Dec),
     foreach(fun({0, Msg}) -> Down ! {send, Msg} end, TTL_Zero),
+    % change the maximum delay before automatic next iteration.
+    case Buffer of
+        [] -> Loop_after = infinity;
+        _ -> Loop_after = 100
+    end,
     receive
+        % upper layer subscribes to {deliver, } messages
         {subscribe, Pid} ->
             fair_loss_link_loop(Down, [Pid | Up_List], Buffer);
         % message from upper layer
@@ -155,9 +137,10 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
         {deliver, Msg} ->
             foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
             fair_loss_link_loop(Down, Up_List, Buffer)
-    after 100 -> % maximum time per iteration
+    after Loop_after -> 
         fair_loss_link_loop(Down, Up_List, Buffer)
     end.
+
 
 % creates a stubborn link
 % @return: [{Stubborn_name1, Erl_Node1}, {Stubborn_name2, Erl_Node2}]
