@@ -47,7 +47,7 @@ sleep(T) -> receive after T -> true end.
 time_of_the_day() ->
     {{ _, _, _},{Hour, Minute, Second}} = erlang:localtime(),
     {_, _, Us} = now(),
-    lists:concat([Hour, "h", Minute, "m", Second, "s ", Us, "us"]).
+    lists:concat([Hour, "h", Minute, "m", Second, "s ", Us, "µs"]).
 
 
 % a dummy receiver that does nothing besides printing the received messages
