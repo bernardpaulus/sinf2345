@@ -22,31 +22,30 @@
 
 % create a damn_simple_link between two nodes (they can be equals)
 %
-% this is a wrapper for damn_simple_link_register
-%
 % @param: Erl_Node1,Erl_Node2 : atoms, names of valid nodes
-% @return: [{Name1, Erl_Node1}, {Name2, Erl_Node2}]
+% @return: [Pid1, Pid2]
 damn_simple_link(Erl_Node1, Erl_Node2) ->
-    utils:subroutine(?MODULE, damn_simple_link_register, [Erl_Node1, Erl_Node2]).
+    Start_loop = fun(Other) -> 
+            damn_simple_link_loop(Other, []) 
+        end.
+    spawn_pair(Erl_Node1, Erl_Node2, Start_loop, Start_loop).
 
-% create a damn_simple_link between two nodes (they can be equals)
-%
-% @param: Erl_Node1,Erl_Node2 : atoms, names of valid nodes
-% @post: the current process is registered
-% @return: [{Name1, Erl_Node1}, {Name2, Erl_Node2}]
-damn_simple_link_register(Erl_Node1, Erl_Node2) ->
-    Self_name = utils:register_unique(damn_simple_link_spawner, self()),
-    % receive both names + exchange those names.
-    spawn(Erl_Node1, ?MODULE, damn_simple_link_startup, [{Self_name, node()}]),
-    receive {name, Proc1} ->
-        spawn(Erl_Node2, ?MODULE, damn_simple_link_startup, [{Self_name, node()}]),
-        receive {name, Proc2} ->
-            Proc1 ! {other, Proc2},
-            Proc2 ! {other, Proc1}
-        end
-    end,
-    % return both names and nodes
-    [Proc1, Proc2].
+% @spec (Erl_Node1, Erl_Node2, Fun1, Fun2) -> [pid(), pid()]
+spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
+    Parent = self(),
+    % acknowledge, then start Fun1 or Fun2 according to parameter
+    Ack = fun(Fun) ->
+            fun() -> 
+                receive {Parent, Other} -> 
+                    Parent ! {ack, self()},
+                    Fun(Other)
+                end
+            end
+        end,
+    Pid1 = spawn(Erl_Node1, Ack(Fun1)),
+    Pid2 = spawn(Erl_Node2, Ack(Fun2)),
+    [Pid1, Pid2].
+
 
 % register the process, wait for the {name, node} of the other side
 % then start loop
@@ -78,17 +77,11 @@ perfect_link(Erl_Node1, Erl_Node2) -> damn_simple_link(Erl_Node1, Erl_Node2).
 
 % Fair-loss link in both directions
 % @return: [{Fair_loss_name1, Erl_Node1}, {Fair_loss_name2, Erl_Node2}]
-fair_loss_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
-    utils:subroutine(fun() ->
-        Name = utils:register_unique(tmp_name, self()),
-        spawn(Erl_Node1, ?MODULE, fair_loss_link_end, 
-                    [{Name1, Erl_Node1}, {Name, node()}]),
-        receive Pid1 -> Pid1 end,
-        spawn(Erl_Node2, ?MODULE, fair_loss_link_end, 
-                    [{Name2, Erl_Node2}, {Name, node()}]),
-        receive Pid2 -> Pid2 end,
-        [Pid1, Pid2]
-    end).
+% TODO pid
+fair_loss_link(Down1, Down2) when is_pid(Down1), is_pid(Down2)->
+    Pid1 = spawn(node(Down1), fun() -> fair_loss_link_loop(Down1, [], []) end),
+    Pid2 = spawn(node(Down2), fun() -> fair_loss_link_loop(Down2, [], []) end),
+    [Pid1, Pid2].
     
 
 % One end of a fair loss link
