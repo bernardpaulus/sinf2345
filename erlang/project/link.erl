@@ -9,9 +9,7 @@
          stubborn_link/2
          ]).
 
--export([damn_simple_link_register/2,
-        damn_simple_link_startup/1,
-        damn_simple_link_loop/2,
+-export([damn_simple_link_loop/2,
         fair_loss_link_end/2,
         fair_loss_link_loop/3,
         stubborn_link_end/2,
@@ -27,7 +25,7 @@
 damn_simple_link(Erl_Node1, Erl_Node2) ->
     Start_loop = fun(Other) -> 
             damn_simple_link_loop(Other, []) 
-        end.
+        end,
     spawn_pair(Erl_Node1, Erl_Node2, Start_loop, Start_loop).
 
 % @spec (Erl_Node1, Erl_Node2, Fun1, Fun2) -> [pid(), pid()]
@@ -44,6 +42,12 @@ spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
         end,
     Pid1 = spawn(Erl_Node1, Ack(Fun1)),
     Pid2 = spawn(Erl_Node2, Ack(Fun2)),
+    % transfer the Pid of the other node
+    Pid1 ! {self(), Pid2},
+    Pid2 ! {self(), Pid1},
+    % wait for ack
+    receive {ack, Pid1} -> ok end,
+    receive {ack, Pid2} -> ok end,
     [Pid1, Pid2].
 
 
@@ -70,8 +74,19 @@ perfect_link(Erl_Node1, Erl_Node2) -> damn_simple_link(Erl_Node1, Erl_Node2).
 % @return: [{Fair_loss_name1, Erl_Node1}, {Fair_loss_name2, Erl_Node2}]
 % TODO pid
 fair_loss_link(Down1, Down2) when is_pid(Down1), is_pid(Down2)->
-    Pid1 = spawn(node(Down1), fun() -> fair_loss_link_loop(Down1, [], []) end),
-    Pid2 = spawn(node(Down2), fun() -> fair_loss_link_loop(Down2, [], []) end),
+    Parent = self(),
+    Subscribe_ack = fun(Down) ->
+            fun() ->
+                Down ! {subscribe, self()},
+                Parent ! {ack, self()},
+                fair_loss_link_loop(Down, [], [])
+            end
+        end,
+    Pid1 = spawn(node(Down1), Subscribe_ack(Down1)),
+    Pid2 = spawn(node(Down2), Subscribe_ack(Down2)),
+    % wait for ack
+    receive {ack, Pid1} -> ok end,
+    receive {ack, Pid2} -> ok end,
     [Pid1, Pid2].
     
 
@@ -106,6 +121,7 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
             fair_loss_link_loop(Down, [Pid | Up_List], Buffer);
         % message from upper layer
         {send, Msg} ->
+            io:format("~p: ~p~n", [self(), {self(), Msg}]),
             P = random:uniform(),
             if 
                 P < 0.1 -> % Msg loss

@@ -117,7 +117,8 @@ seed_once() ->
         _  -> 
             {A, B, C} = now(),
             random:seed(A, B, C),
-            put(seeded, true)
+            put(seeded, true),
+            ok
     end.
 
 % spawn a function in a subprocess
