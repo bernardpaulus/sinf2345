@@ -47,15 +47,6 @@ spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
     [Pid1, Pid2].
 
 
-% register the process, wait for the {name, node} of the other side
-% then start loop
-damn_simple_link_startup(Spawner_process) ->
-    Self_name = utils:register_unique(damn_simple_link, self()),
-    Spawner_process ! {name, {Self_name, node()}},
-    receive {other, Other_proc} -> 
-        damn_simple_link_loop(Other_proc, [])
-    end.
-
 damn_simple_link_loop(Other, Up_List) -> 
     receive
         % register the process whishing to receive notifications
