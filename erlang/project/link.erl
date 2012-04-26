@@ -6,7 +6,8 @@
 % use this
 -export([fair_loss_link/2,
          perfect_link/2,
-         stubborn_link/2
+         stubborn_link/2,
+         damn_simple_link/2
          ]).
 
 -export([damn_simple_link_loop/2,
