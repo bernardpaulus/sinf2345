@@ -1,4 +1,6 @@
-% link model library
+% @author bernard paulus
+% @author martin trigaux
+% @doc link model library
 
 -module(link).
 -import(lists, [map/2, partition/2, foreach/2]).
@@ -11,7 +13,6 @@
 
 -export([damn_simple_link_loop/2,
         fair_loss_link_loop/3,
-        stubborn_link_end/2,
         stubborn_link_loop/4,
         spawn_same_node/2,
         spawn_same_node/3
@@ -76,7 +77,6 @@ spawn_same_node(Down, Fun, Args) when is_function(Fun), is_list(Args) ->
     Parent = self(),
     Pid = spawn(node(Down), fun() ->
             Parent ! {ack, self()},
-            % execute function with args
             apply(Fun, Args)
         end),
     % wait for ack
@@ -151,7 +151,7 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
                     fair_loss_link_loop(Down, Up_List, Buffer)
             end;
         {deliver, Msg} ->
-            foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
+            [Pid ! {deliver, Msg} || Pid <- Up_List],
             fair_loss_link_loop(Down, Up_List, Buffer)
     after Loop_after -> 
         fair_loss_link_loop(Down, Up_List, Buffer)
@@ -161,29 +161,17 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
 % creates a stubborn link
 % @return: [{Stubborn_name1, Erl_Node1}, {Stubborn_name2, Erl_Node2}]
 % TODO Pid
-stubborn_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
-    utils:subroutine(fun() ->
-        Name = utils:register_unique(tmp_name, self()),
-        spawn(Erl_Node1, ?MODULE, stubborn_link_end, 
-                    [{Name1, Erl_Node1}, {Name, node()}]),
-        receive Pid1 -> Pid1 end,
-        spawn(Erl_Node2, ?MODULE, stubborn_link_end, 
-                    [{Name2, Erl_Node2}, {Name, node()}]),
-        receive Pid2 -> Pid2 end,
-        [Pid1, Pid2]
-    end).
-
-% stubborn_link init
-stubborn_link_end(Pid, Spawner_process) ->
-    % send how to access this process to the spawner
-    Name = utils:register_unique(stubborn_link, self()),
-    Spawner_process ! {Name, node()}, 
-    % ask for deliver notifications
-    Pid ! {subscribe, {Name, node()}},
-    % start timer
-    Delta = 100,
-    erlang:send_after(Delta, self(), {timeout}),
-    stubborn_link_loop(Pid, [], Delta, sets:new()).
+stubborn_link(Down1, Down2) ->
+    % suscribe and start the timer
+    Init = fun(Down) ->
+                Down ! {subscribe, self()},
+                Delta = 100, % ms
+                erlang:send_after(Delta, self(), {timeout}), % start timer
+                stubborn_link_loop(Down, [], Delta, sets:new())
+        end,
+    Pid1 = spawn_same_node(Down1, Init, [Down1]),
+    Pid2 = spawn_same_node(Down2, Init, [Down2]),
+    {Pid1, Pid2}.
 
 stubborn_link_loop(Down, Up_List, Delta, Sent) ->
     receive
@@ -192,7 +180,7 @@ stubborn_link_loop(Down, Up_List, Delta, Sent) ->
             stubborn_link_loop(Down, [Pid | Up_List], Delta, Sent);
         % periodic resent
         {timeout} ->
-            foreach(fun(Msg) -> Down ! {send, Msg} end, sets:to_list(Sent)),
+            [ Down ! {send, Msg} || Msg <- sets:to_list(Sent)],
             erlang:send_after(Delta, self(), {timeout}),
             stubborn_link_loop(Down, Up_List, Delta, Sent);
         % upper layer request
@@ -202,7 +190,7 @@ stubborn_link_loop(Down, Up_List, Delta, Sent) ->
                                 sets:add_element(Msg, Sent));
         % receive a message from Down
         {deliver, Msg} ->
-            foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
+            [Pid ! {deliver, Msg} || Pid <- Up_List],
             stubborn_link_loop(Down, Up_List, Delta, Sent)
     end.
 
