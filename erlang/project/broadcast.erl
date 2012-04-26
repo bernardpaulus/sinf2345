@@ -1,11 +1,9 @@
 -module(broadcast).
 -export([
-    fib/1,
     basic_broadcast/0,
     basic_broadcast_loop/2
     ]).
 -import(lists, [foreach/2]).
-
 
 
 basic_broadcast() ->
