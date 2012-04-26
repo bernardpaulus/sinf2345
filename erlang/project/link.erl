@@ -10,10 +10,11 @@
          ]).
 
 -export([damn_simple_link_loop/2,
-        fair_loss_link_end/2,
         fair_loss_link_loop/3,
         stubborn_link_end/2,
-        stubborn_link_loop/4
+        stubborn_link_loop/4,
+        spawn_same_node/2,
+        spawn_same_node/3
         ]).
 
 % TODO refactor
@@ -21,14 +22,21 @@
 % create a damn_simple_link between two nodes (they can be equals)
 %
 % @param: Erl_Node1,Erl_Node2 : atoms, names of valid nodes
-% @return: [Pid1, Pid2]
+% @return: {Pid1, Pid2}
 damn_simple_link(Erl_Node1, Erl_Node2) ->
     Start_loop = fun(Other) -> 
             damn_simple_link_loop(Other, []) 
         end,
     spawn_pair(Erl_Node1, Erl_Node2, Start_loop, Start_loop).
 
-% @spec (Erl_Node1, Erl_Node2, Fun1, Fun2) -> [pid(), pid()]
+
+% @spec (Erl_Node1, Erl_Node2, Fun1, Fun2) -> {Pid1::pid(), Pid2::pid()}
+%   Erl_Node1 = atom(),
+%   Erl_Node2 = atom(),
+%   Fun1 = (Pid2::pid()) -> T,
+%   Fun2 = (Pid1::pid()) -> T
+% @doc spawns a pair of processes, Fun1 on node1, Fun2 on node2
+% and returns their two pid, in the same order
 spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
     Parent = self(),
     % acknowledge, then start Fun1 or Fun2 according to parameter
@@ -48,7 +56,32 @@ spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
     % wait for ack
     receive {ack, Pid1} -> ok end,
     receive {ack, Pid2} -> ok end,
-    [Pid1, Pid2].
+    {Pid1, Pid2}.
+
+
+% @spec (Down, Fun) -> pid()
+%   Down = pid(),
+%   Fun = () -> T
+% @equiv spawn_same_node(Down, Fun, [])
+% @doc spawns Fun on the same node as Down.
+spawn_same_node(Down, Fun) when is_function(Fun, 0) ->
+    spawn_same_node(Down, Fun, []).
+
+% @spec (Down, Fun, Args) -> pid()
+%   Down = pid(),
+%   Fun = function(),
+%   Args = [term()]
+% @doc spawns Fun with the list of arguments Args on the same node as Down.
+spawn_same_node(Down, Fun, Args) when is_function(Fun), is_list(Args) ->
+    Parent = self(),
+    Pid = spawn(node(Down), fun() ->
+            Parent ! {ack, self()},
+            % execute function with args
+            apply(Fun, Args)
+        end),
+    % wait for ack
+    receive {ack, Pid} -> ok end,
+    Pid.
 
 
 damn_simple_link_loop(Other, Up_List) -> 
@@ -70,34 +103,17 @@ damn_simple_link_loop(Other, Up_List) ->
 % Perfect link
 perfect_link(Erl_Node1, Erl_Node2) -> damn_simple_link(Erl_Node1, Erl_Node2).
 
-% Fair-loss link in both directions
-% @return: [{Fair_loss_name1, Erl_Node1}, {Fair_loss_name2, Erl_Node2}]
-% TODO pid
-fair_loss_link(Down1, Down2) when is_pid(Down1), is_pid(Down2)->
-    Parent = self(),
-    Subscribe_ack = fun(Down) ->
-            fun() ->
+% 
+fair_loss_link(Down1, Down2) when is_pid(Down1), is_pid(Down2) ->
+    % spawned process subscribes to deliver and then start its loop
+    Start_loop = fun(Down) ->
                 Down ! {subscribe, self()},
-                Parent ! {ack, self()},
                 fair_loss_link_loop(Down, [], [])
-            end
         end,
-    Pid1 = spawn(node(Down1), Subscribe_ack(Down1)),
-    Pid2 = spawn(node(Down2), Subscribe_ack(Down2)),
-    % wait for ack
-    receive {ack, Pid1} -> ok end,
-    receive {ack, Pid2} -> ok end,
-    [Pid1, Pid2].
-    
+    Pid1 = spawn_same_node(Down1, Start_loop, [Down1]),
+    Pid2 = spawn_same_node(Down2, Start_loop, [Down2]),
+    {Pid1, Pid2}.
 
-% One end of a fair loss link
-% get a name, give it to spawner, 
-fair_loss_link_end(Pid, Spawner_process) ->
-    Name = utils:register_unique(fair_loss_link, self()),
-    Spawner_process ! {Name, node()}, 
-        % send how to access this process to the spawner
-    Pid ! {subscribe, {Name, node()}},
-    fair_loss_link_loop(Pid, [], []).
 
 % loop each 100 ms when messages are delayed/reordered, upon message reception
 % otherwise
@@ -144,6 +160,7 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
 
 % creates a stubborn link
 % @return: [{Stubborn_name1, Erl_Node1}, {Stubborn_name2, Erl_Node2}]
+% TODO Pid
 stubborn_link({Name1, Erl_Node1}, {Name2, Erl_Node2}) ->
     utils:subroutine(fun() ->
         Name = utils:register_unique(tmp_name, self()),
