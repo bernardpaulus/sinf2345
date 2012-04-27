@@ -1,20 +1,9 @@
--module(test).
+-module(broadcast).
 -export([
-    fib/1,
     basic_broadcast/0,
     basic_broadcast_loop/2
     ]).
 -import(lists, [foreach/2]).
-
-
-% Fibonacciiiiii
-fib(N) ->
-    case N of
-        0 -> 1;
-        1 -> 1;
-        _ -> fib(N-1)+fib(N-2)
-    end.
-
 
 
 basic_broadcast() ->
