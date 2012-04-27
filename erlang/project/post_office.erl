@@ -38,7 +38,7 @@ post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq) ->
                 Key == ok ->
                     Dest_PO = dict:fetch(To_User, All_Users),
                     Enc_Msg = {send, From_User, To_User, Msg_Seq, M},
-                    My_Link ! {transmit, self(), Dest_PO, PO_Seq, Enc_Msg},
+                    My_Link ! {send, self(), Dest_PO, PO_Seq, Enc_Msg},
                     post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq+1);
                 true ->
                     io:format("Oups I don't know ~p~n", [To_User]),
