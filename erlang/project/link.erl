@@ -16,7 +16,8 @@
         fair_loss_link_loop/3,
         stubborn_link_loop/4,
         spawn_same_node/2,
-        spawn_same_node/3
+        spawn_same_node/3,
+        spawn_multiple/3
         ]).
 
 % TODO refactor
@@ -59,6 +60,36 @@ spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
     receive {ack, Pid1} -> ok end,
     receive {ack, Pid2} -> ok end,
     {Pid1, Pid2}.
+
+% @spec (Nodes, Funs, Argss) -> [Pids :: pid()]
+%   Nodes = [node()]
+%   Funs = [Fun]
+%   Fun = function()
+%   Argss = [Args]
+%   Args = [term()]
+% @doc for each (Node, Fun, Args), spawn Fun on node Node with [Pids | Args] as
+% argument.
+% Pids is the list of the Pid of all those spawned processes.
+spawn_multiple(Nodes, Funs, Argss) when 
+        is_list(Nodes), is_list(Funs), is_list(Argss),
+        length(Nodes) == length(Funs), length(Funs) == length(Argss) ->
+    Parent = self(),
+    % acknowledge, then start Fun with the Pids and the args as argument
+    Start_Fun = fun(Fun, Args) ->
+            fun() -> 
+                receive {Parent, Pids} -> 
+                    Parent ! {ack, self()},
+                    apply(Fun, [Pids | Args])
+                end
+            end
+        end,
+    Pids = [spawn(Node, Start_Fun(Fun, Args)) || 
+                    {Node, Fun, Args} <- lists:zip3(Nodes, Funs, Argss)],
+    % send list of Pids
+    [ Pid ! {Parent, Pids} || Pid <- Pids ],
+    % ack
+    [receive {ack, Pid} -> ok end || Pid <- Pids],
+    Pids.
 
 
 % @spec (Down, Fun) -> pid()
