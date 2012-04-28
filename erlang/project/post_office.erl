@@ -4,8 +4,8 @@
 
 post_office(PO_List, Link) ->
     Start_loop = fun() ->
-        % TODO replace by set instead of list
-        post_office_loop([], [], PO_List, Link, 0) 
+        % create empty post office
+        post_office_loop(sets:new(), dict:new(), PO_List, Link, 0) 
     end,
     spawn(Start_loop).
 
@@ -23,8 +23,7 @@ post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq) ->
                 end,
                 PO_List),
             post_office_loop(
-                % TODO replace by set instead of list
-                [User_Pid | My_Users],
+                sets:add_element(User_Pid,My_Users),
                 dict:append(User_Pid, self(), All_Users),
                 PO_List,
                 My_Link,
@@ -52,9 +51,15 @@ post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq) ->
                 % transmit the message to the corresponding user
                 Action == send ->
                     {From_User, To_User, Enc_Seq, Enc_Msg} = Body,
-                    % TODO check To_User belongs to me
-                    To_User ! {deliver, From_User, To_User, Enc_Seq, Enc_Msg},
+                    % check the user belongs to me
+                    case sets:is_element(To_User, My_Users) of
+                        true ->
+                            To_User ! {deliver, From_User, To_User, Enc_Seq, Enc_Msg};
+                        false ->
+                            io:format("The user ~p does not belong to me~n", [To_User])
+                    end,
                     post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq);
+
                 % add an external user to the all users list
                 Action == subscribe ->
                     {User_Pid, PO_Pid, _} = Body,
@@ -65,6 +70,7 @@ post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq) ->
                         PO_List,
                         My_Link,
                         PO_Seq);
+
                 true ->
                     io:format("Unknown action ~p~n", [Action]),
                     post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq)
