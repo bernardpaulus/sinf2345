@@ -9,18 +9,20 @@
 -export([fair_loss_link/2,
          perfect_link/2,
          stubborn_link/2,
+         damn_simple_link/1,
          damn_simple_link/2
          ]).
 
--export([damn_simple_link_loop/2,
+-export([damn_simple_link_init/1,
+        damn_simple_link_loop/2,
+        damn_simple_link_loop/4,
         fair_loss_link_loop/3,
         stubborn_link_loop/4,
         spawn_same_node/2,
         spawn_same_node/3,
+        spawn_multiple/2,
         spawn_multiple/3
         ]).
-
-% TODO refactor
 
 % create a damn_simple_link between two nodes (they can be equals)
 %
@@ -91,6 +93,15 @@ spawn_multiple(Nodes, Funs, Argss) when
     [receive {ack, Pid} -> ok end || Pid <- Pids],
     Pids.
 
+% @spec (Nodes, Funs) -> [Pids :: pid()]
+%   Nodes = [node()]
+%   Funs = [Fun]
+%   Fun = function()
+% @equiv spawn_multiple(Nodes, Funs, [[] || _ <- lists:seq(1, length(Funs))])
+spawn_multiple(Nodes, Funs) when is_list(Nodes), is_list(Funs), 
+        length(Nodes) == length(Funs) ->
+    spawn_multiple(Nodes, Funs, [[] || _ <- lists:seq(1, length(Funs))]).
+
 
 % @spec (Down, Fun) -> pid()
 %   Down = pid(),
@@ -115,8 +126,40 @@ spawn_same_node(Down, Fun, Args) when is_function(Fun), is_list(Args) ->
     receive {ack, Pid} -> ok end,
     Pid.
 
+damn_simple_link(Nodes) when is_list(Nodes) ->
+    spawn_multiple(Nodes, [fun damn_simple_link_init/1 || 
+            _ <- lists:seq(1, length(Nodes)) ]).
 
-damn_simple_link_loop(Other, Up_List) -> 
+damn_simple_link_init(Others) ->
+    damn_simple_link_loop(Others, sets:new(), dict:new(), 0).
+
+damn_simple_link_loop(Others, My_Up, All_Up, Seq_Num) ->
+    Self = self(),
+    receive
+        % register the process whishing to receive notifications
+        {subscribe, Up, _Seq} ->
+            [Other ! {subscribe, Up, at, self(), Seq_Num} || 
+                    Other <- Others, Other /= self()],
+            damn_simple_link_loop(Others, sets:add_element(Up, My_Up),
+                    dict:append(Up, self(), All_Up), Seq_Num + 1); 
+        % receive notification of subscription on another node
+        {subscribe, Up, at, Other, _Seq} ->
+            damn_simple_link_loop(Others, My_Up, dict:append(Up, Other, All_Up),
+                    Seq_Num);
+        % receive a message from the upper layer
+        {send, _From, To, _Seq, _Msg}  = M ->
+            [Other] = dict:fetch(To, All_Up), % crash process if not found in dict
+            Other ! {transmit, self(), Other, Seq_Num, M},
+            damn_simple_link_loop(Others, My_Up, All_Up, Seq_Num + 1);
+        % receive a message from the other end of the channel
+        {transmit, Other, Self, _Seq, {send, From, To, Seq, Msg}} -> 
+            case sets:is_element(To, My_Up) of true ->
+                To ! {deliver, From, To, Seq, Msg},
+                damn_simple_link_loop(Other, My_Up, All_Up, Seq_Num)
+            end
+    end.
+
+damn_simple_link_loop(Other, Up_List) when is_pid(Other) -> 
     receive
         % register the process whishing to receive notifications
         {subscribe, Pid} ->
@@ -192,7 +235,6 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
 
 % creates a stubborn link
 % @return: [{Stubborn_name1, Erl_Node1}, {Stubborn_name2, Erl_Node2}]
-% TODO Pid
 stubborn_link(Down1, Down2) ->
     % suscribe and start the timer
     Init = fun(Down) ->
