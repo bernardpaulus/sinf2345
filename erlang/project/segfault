@@ -1,0 +1,201 @@
+bernard ~/Documents/SINF2345_algo_dist_apps/erlang/project $ erl
+Erlang R15B (erts-5.9) [source] [smp:2:2] [async-threads:0] [kernel-poll:false]
+
+Eshell V5.9  (abort with ^G)
+1> c(link, [debug_info]). 
+link.erl:227: syntax error before: P
+link.erl:258: syntax error before: TTL_Dec
+link.erl:13: function perfect_link_loop/1 undefined
+link.erl:198: function perfect_link_loop/1 undefined
+error
+2> c(link, [debug_info]).
+link.erl:231: syntax error before: '('
+link.erl:258: syntax error before: ')'
+link.erl:13: function perfect_link_loop/1 undefined
+link.erl:198: function perfect_link_loop/1 undefined
+error
+3> c(link, [debug_info]).
+link.erl:235: syntax error before: ','
+link.erl:258: syntax error before: ')'
+link.erl:13: function perfect_link_loop/1 undefined
+link.erl:198: function perfect_link_loop/1 undefined
+error
+4> c(link, [debug_info]).
+link.erl:258: syntax error before: ')'
+link.erl:207: function perfect_link_loop_decrement_ttl/1 undefined
+link.erl:230: Warning: variable 'TTL' is unused
+error
+5> c(link, [debug_info]).
+link.erl:258: variable 'Old_Buffer' is unbound
+link.erl:260: variable 'Down' is unbound
+error
+6> c(link, [debug_info]).
+link.erl:258: variable 'Down' is unbound
+link.erl:258: variable 'Old_Buffer' is unbound
+error
+7> c(link, [debug_info]).
+link.erl:258: variable 'Down' is unbound
+link.erl:258: variable 'Old_Buffer' is unbound
+error
+8> c(link, [debug_info]).
+{ok,link}
+9> [A, B] =  link:damn_simple_link([node(), node()]).
+[<0.67.0>,<0.68.0>]
+10> [C, D] = link:perfect_link([A, B])?
+10> KL?K.?.
+* 1: syntax error before: '?'
+10> [C, D] = link:perfect_link([A, B]).
+[<0.71.0>,<0.72.0>]
+11> R = utils:dummy_receiver().
+<0.74.0>
+12> D ! {subscribe, R, 0}.
+{subscribe,<0.74.0>,0}
+13> C ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.74.0>,0,hopsy}
+process <0.74.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.74.0>,0,hopsy}
+14> C ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.74.0>,0,hopsy}
+
+=ERROR REPORT==== 28-Apr-2012::21:07:42 ===
+Error in process <0.72.0> with exit value:
+{{badmatch,{pl_state,[<0.71.0>,<0.72.0>],<0.68.0>,{set,1,16,16,8,80,48,{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},{{[],[],[],[],[],[],[],[],[],[],[<0.74.0>],[],[],[],[],[]}}},{dict,1,16,16,8,80,48,{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},{{[],[],[],[],[],[],[],[],[],[],[[<0.74.0>,<0.72.0>]],[],[],[],[],[]}}},3,[],100,64}},[{link,damn_simple_link_loop,1,[{file,"link.erl"},{line,159}]}]}
+
+15> f().
+ok
+16> im(), ii(link), iaa([init]).
+true
+17> [A, B] =  link:damn_simple_link([node(), node()]).
+[<0.92.0>,<0.94.0>]
+18> R = utils:dummy_receiver().                       
+<0.102.0>
+19> B ! {subscribe, R, 0}.               
+{subscribe,<0.102.0>,0}
+20> A ! {send, self(), R, 0, hopsy}.                  
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+21> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+22> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+23> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+24> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+25> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+26> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+27> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+28> 
+28> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+29> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+30> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+31> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+32> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+33> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+34> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+35> A ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.102.0>,0,hopsy}
+process <0.102.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.102.0>,0,hopsy}
+36> f().                                              
+ok
+37> [A, B] =  link:damn_simple_link([node(), node()]).
+[<0.122.0>,<0.124.0>]
+38> [C, D] = link:perfect_link([A, B]).               
+[<0.131.0>,<0.133.0>]
+39> R = utils:dummy_receiver().                       
+<0.140.0>
+40> D ! {subscribe, R, 0}.                            
+{subscribe,<0.140.0>,0}
+41> C ! {send, self(), R, 0, hopsy}.                  
+{send,<0.32.0>,<0.140.0>,0,hopsy}
+process <0.140.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.140.0>,0,hopsy}
+42> C ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.140.0>,0,hopsy}
+43> 
+=ERROR REPORT==== 28-Apr-2012::21:14:11 ===
+Error in process <0.133.0> with exit value:
+{{badmatch,{pl_state,[<0.131.0>,<0.133.0>],<0.124.0>,{set,1,16,16,8,80,48,{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},{{[],[],[],[],[],[],[],[],[],[],[],[],[<0.140.0>],[],[],[]}}},{dict,1,16,16,8,80,48,{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},{{[],[],[],[],[],[],[],[],[],[],[],[],[[<0.140.0>,<0.133.0>]],[],[],[]}}},3,[],100,64}},[{link,damn_simple_link_loop,1,[{file,"link.erl"},{line,159}]}]}
+
+43> f().                                              
+ok
+44> im(), ii(link), iaa([init]).                      
+true
+45> f().                            
+ok
+46> im(), ii(link), iaa([init]).
+true
+47> [A, B] =  link:damn_simple_link([node(), node()]).
+[<0.167.0>,<0.169.0>]
+48> [C, D] = link:perfect_link([A, B]).               
+[<0.177.0>,<0.179.0>]
+49> R = utils:dummy_receiver().                       
+<0.186.0>
+50> D ! {subscribe, R, 0}.                            
+{subscribe,<0.186.0>,0}
+51> C ! {send, self(), R, 0, hopsy}.                  
+{send,<0.32.0>,<0.186.0>,0,hopsy}
+process <0.186.0> of nonode@nohost received
+{deliver,<0.32.0>,<0.186.0>,0,hopsy}
+52> C ! {send, self(), R, 0, hopsy}.
+{send,<0.32.0>,<0.186.0>,0,hopsy}
+53> 
+=ERROR REPORT==== 28-Apr-2012::21:22:24 ===
+Error in process <0.179.0> with exit value:
+{{badmatch,{pl_state,[<0.177.0>,<0.179.0>],<0.169.0>,{set,1,16,16,8,80,48,{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},{{[],[],[],[],[],[],[],[],[],[],[<0.186.0>],[],[],[],[],[]}}},{dict,1,16,16,8,80,48,{[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]},{{[],[],[],[],[],[],[],[],[],[],[[<0.186.0>,<0.179.0>]],[],[],[],[],[]}}},3,[],100,64}},[{link,damn_simple_link_loop,1,[{file,"link.erl"},{line,159}]}]}
+
+
+53> c(link, [debug_info]).                            
+{ok,link}
+54> c(link, [debug_info]).
+{ok,link}
+55> f().                                              
+ok
+56> im(), ii(link), iaa([init]).                      
+true
+57> [A, B] =  link:damn_simple_link([node(), node()]).
+[<0.216.0>,<0.218.0>]
+58> [C, D] = link:perfect_link([A, B]).               
+[<0.226.0>,<0.228.0>]
+59> Segmentation fault
+
