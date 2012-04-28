@@ -6,15 +6,10 @@
 -import(lists, [map/2, partition/2, foreach/2]).
 
 % use this
--export([fair_loss_link/2,
-         perfect_link/2,
-         stubborn_link/2,
-         damn_simple_link/1,
-         damn_simple_link/2
+-export([damn_simple_link/1
          ]).
 
 -export([damn_simple_link_init/1,
-        damn_simple_link_loop/2,
         damn_simple_link_loop/4,
         fair_loss_link_loop/3,
         stubborn_link_loop/4,
@@ -23,45 +18,6 @@
         spawn_multiple/2,
         spawn_multiple/3
         ]).
-
-% create a damn_simple_link between two nodes (they can be equals)
-%
-% @param: Erl_Node1,Erl_Node2 : atoms, names of valid nodes
-% @return: {Pid1, Pid2}
-damn_simple_link(Erl_Node1, Erl_Node2) ->
-    Start_loop = fun(Other) -> 
-            damn_simple_link_loop(Other, []) 
-        end,
-    spawn_pair(Erl_Node1, Erl_Node2, Start_loop, Start_loop).
-
-
-% @spec (Erl_Node1, Erl_Node2, Fun1, Fun2) -> {Pid1::pid(), Pid2::pid()}
-%   Erl_Node1 = atom(),
-%   Erl_Node2 = atom(),
-%   Fun1 = (Pid2::pid()) -> T,
-%   Fun2 = (Pid1::pid()) -> T
-% @doc spawns a pair of processes, Fun1 on node1, Fun2 on node2
-% and returns their two pid, in the same order
-spawn_pair(Erl_Node1, Erl_Node2, Fun1, Fun2) ->
-    Parent = self(),
-    % acknowledge, then start Fun1 or Fun2 according to parameter
-    Ack = fun(Fun) ->
-            fun() -> 
-                receive {Parent, Other} -> 
-                    Parent ! {ack, self()},
-                    Fun(Other)
-                end
-            end
-        end,
-    Pid1 = spawn(Erl_Node1, Ack(Fun1)),
-    Pid2 = spawn(Erl_Node2, Ack(Fun2)),
-    % transfer the Pid of the other node
-    Pid1 ! {self(), Pid2},
-    Pid2 ! {self(), Pid1},
-    % wait for ack
-    receive {ack, Pid1} -> ok end,
-    receive {ack, Pid2} -> ok end,
-    {Pid1, Pid2}.
 
 % @spec (Nodes, Funs, Argss) -> [Pids :: pid()]
 %   Nodes = [node()]
@@ -159,36 +115,6 @@ damn_simple_link_loop(Others, My_Up, All_Up, Seq_Num) ->
             end
     end.
 
-damn_simple_link_loop(Other, Up_List) when is_pid(Other) -> 
-    receive
-        % register the process whishing to receive notifications
-        {subscribe, Pid} ->
-            damn_simple_link_loop(Other, [Pid | Up_List]);
-        % receive a message from the upper layer
-        {send, Msg} ->
-            Other ! {transmit, Msg},
-            damn_simple_link_loop(Other, Up_List);
-        % receive a message from the other end of the channel
-        {transmit, Msg} ->
-            foreach(fun(Pid) -> Pid ! {deliver, Msg} end, Up_List),
-            damn_simple_link_loop(Other, Up_List)
-    end.
-
-
-% Perfect link
-perfect_link(Erl_Node1, Erl_Node2) -> damn_simple_link(Erl_Node1, Erl_Node2).
-
-% 
-fair_loss_link(Down1, Down2) when is_pid(Down1), is_pid(Down2) ->
-    % spawned process subscribes to deliver and then start its loop
-    Start_loop = fun(Down) ->
-                Down ! {subscribe, self()},
-                fair_loss_link_loop(Down, [], [])
-        end,
-    Pid1 = spawn_same_node(Down1, Start_loop, [Down1]),
-    Pid2 = spawn_same_node(Down2, Start_loop, [Down2]),
-    {Pid1, Pid2}.
-
 
 % loop each 100 ms when messages are delayed/reordered, upon message reception
 % otherwise
@@ -232,20 +158,6 @@ fair_loss_link_loop(Down, Up_List, Old_Buffer) ->
         fair_loss_link_loop(Down, Up_List, Buffer)
     end.
 
-
-% creates a stubborn link
-% @return: [{Stubborn_name1, Erl_Node1}, {Stubborn_name2, Erl_Node2}]
-stubborn_link(Down1, Down2) ->
-    % suscribe and start the timer
-    Init = fun(Down) ->
-                Down ! {subscribe, self()},
-                Delta = 100, % ms
-                erlang:send_after(Delta, self(), {timeout}), % start timer
-                stubborn_link_loop(Down, [], Delta, sets:new())
-        end,
-    Pid1 = spawn_same_node(Down1, Init, [Down1]),
-    Pid2 = spawn_same_node(Down2, Init, [Down2]),
-    {Pid1, Pid2}.
 
 stubborn_link_loop(Down, Up_List, Delta, Sent) ->
     receive
