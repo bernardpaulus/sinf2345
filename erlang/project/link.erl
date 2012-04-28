@@ -156,8 +156,7 @@ damn_simple_link_loop(State) ->
             damn_simple_link_loop(State#dsl_state{
                     seq =  Seq_Num + 1});
         {deliver, _, Self, _, {send, From, To, S, Msg}} -> 
-            io:format("~p", State),
-            #dsl_state{my_up = My_Up} = State,
+            #dsl_state{my_up=My_Up} = State,
             % translate the "send" in "deliver"
             case sets:is_element(To, My_Up) of true ->
                 To ! {deliver, From, To, S, Msg},
@@ -242,7 +241,7 @@ perfect_link_loop(State0) ->
             % translate the "send" in "deliver"
             case sets:is_element(To, My_Up) of true ->
                 To ! {deliver, From, To, S, Msg},
-                damn_simple_link_loop(State)
+                perfect_link_loop(State)
             end;
         {deliver, Other, Self, _, {subscribe, Up, _}} -> 
             All_Up = State#pl_state.all_up,
