@@ -6,23 +6,26 @@
 -import(lists, [map/2, partition/2, foreach/2]).
 
 % use this
--export([damn_simple_link/1
+-export([damn_simple_link/1,
+        perfect_link/1
          ]).
 
 -export([damn_simple_link_init/1,
-        damn_simple_link_loop/4,
         fair_loss_link_loop/3,
         stubborn_link_loop/4,
         spawn_same_node/2,
         spawn_same_node/3,
         spawn_multiple/2,
-        spawn_multiple/3
+        spawn_multiple/3,
+        spawn_multiple_on_top/2,
+        spawn_multiple_on_top/3,
+        perfect_link_init/2,
+        perfect_link_loop/1
         ]).
 
 % @spec (Nodes, Funs, Argss) -> [Pids :: pid()]
 %   Nodes = [node()]
-%   Funs = [Fun]
-%   Fun = function()
+%   Funs = [Fun :: function()]
 %   Argss = [Args]
 %   Args = [term()]
 % @doc for each (Node, Fun, Args), spawn Fun on node Node with [Pids | Args] as
@@ -51,13 +54,36 @@ spawn_multiple(Nodes, Funs, Argss) when
 
 % @spec (Nodes, Funs) -> [Pids :: pid()]
 %   Nodes = [node()]
-%   Funs = [Fun]
-%   Fun = function()
+%   Funs = [Fun :: function()]
 % @equiv spawn_multiple(Nodes, Funs, [[] || _ <- lists:seq(1, length(Funs))])
 spawn_multiple(Nodes, Funs) when is_list(Nodes), is_list(Funs), 
         length(Nodes) == length(Funs) ->
     spawn_multiple(Nodes, Funs, [[] || _ <- lists:seq(1, length(Funs))]).
 
+
+% @spec (Downs, Funs) -> [Pids :: pid()]
+%   Downs = [Down :: pid()]
+%   Funs = [Fun :: function()]
+% @equiv spawn_multiple_on_top(Downs, Funs, [[] || _ <- lists:seq(1, length(Funs))])
+spawn_multiple_on_top(Downs, Funs) when is_list(Downs), is_list(Funs), 
+        length(Downs) == length(Funs) ->
+    spawn_multiple_on_top(Downs, Funs, [[] || _ <- lists:seq(1, length(Funs))]).
+
+
+% @spec (Downs, Funs, Argss) -> [Pids :: pid()]
+%   Downs = [Down :: pid()]
+%   Funs = [Fun :: function()]
+%   Argss = [Args]
+%   Args = [term()]
+% @doc spawn multiple processes, each on top of a process Down.
+% spawn each Fun on the same node as the corresponding Down, passing 
+% [Others, Down | Args] as argument.
+spawn_multiple_on_top(Downs, Funs, Argss) when
+        is_list(Downs), is_list(Funs), is_list(Argss),
+        length(Downs) == length(Funs), length(Funs) == length(Argss) ->
+    Nodes = [node(Down) || Down <- Downs],
+    Argss1 = [ [Down | Args] || {Down, Args} <- lists:zip(Downs, Argss)],
+    spawn_multiple(Nodes, Funs, Argss1).
 
 % @spec (Down, Fun) -> pid()
 %   Down = pid(),
@@ -82,37 +108,110 @@ spawn_same_node(Down, Fun, Args) when is_function(Fun), is_list(Args) ->
     receive {ack, Pid} -> ok end,
     Pid.
 
+% @spec (Nodes::[node()]) -> [pid()]
+% @doc spawn a simple_link process on each node, and returns their pids.
+% they are 'connected in full mesh'
 damn_simple_link(Nodes) when is_list(Nodes) ->
     spawn_multiple(Nodes, [fun damn_simple_link_init/1 || 
             _ <- lists:seq(1, length(Nodes)) ]).
 
-damn_simple_link_init(Others) ->
-    damn_simple_link_loop(Others, sets:new(), dict:new(), 0).
+-record(dsl_state, {
+    others = [], 
+    my_up = sets:new(), 
+    all_up = dict:new(),
+    seq = 0}).
 
-damn_simple_link_loop(Others, My_Up, All_Up, Seq_Num) ->
+% @spec (Nodes::[node()]) -> term()
+% @doc initializes the simple link and never returns.
+damn_simple_link_init(Others) ->
+    damn_simple_link_loop(#dsl_state{others=Others}).
+
+% @doc handle events.
+% {subscribe, Up, _Seq} -> register process in the set of destinations, <br/> 
+% the full mesh got a {subscribe, Up, _Seq}, <br/>
+% {send, _From, To, _Seq, _Msg} -> send a message to To, <br/>
+% {deliver, Other, Self, _Seq, M} -> transmit a message within the full mesh of
+% damn_simple_link processes. Should not be used by other processes.
+damn_simple_link_loop(State) ->
     Self = self(),
     receive
-        % register the process whishing to receive notifications
-        {subscribe, Up, _Seq} ->
-            [Other ! {subscribe, Up, at, self(), Seq_Num} || 
-                    Other <- Others, Other /= self()],
-            damn_simple_link_loop(Others, sets:add_element(Up, My_Up),
-                    dict:append(Up, self(), All_Up), Seq_Num + 1); 
-        % receive notification of subscription on another node
-        {subscribe, Up, at, Other, _Seq} ->
-            damn_simple_link_loop(Others, My_Up, dict:append(Up, Other, All_Up),
-                    Seq_Num);
-        % receive a message from the upper layer
-        {send, _From, To, _Seq, _Msg}  = M ->
+        {subscribe, Up, _} = M ->
+            #dsl_state{others=Others, seq=Seq_Num, my_up = My_Up, all_up=All_Up}
+                    = State,
+            % transmit the request to all others
+            [Other ! {deliver, self(), Other, S, M} || 
+                    {Other, S} <- lists:zip(Others, lists:seq(Seq_Num, Seq_Num +
+                    length(Others) - 1)), Other /= self()],
+            damn_simple_link_loop(State#dsl_state{
+                    my_up = sets:add_element(Up, My_Up),
+                    all_up = dict:append(Up, self(), All_Up), 
+                    seq = Seq_Num + length(Others)}); 
+        {send, _, To, _, _}  = M ->
+            #dsl_state{seq = Seq_Num, all_up = All_Up} = State,
             [Other] = dict:fetch(To, All_Up), % crash process if not found in dict
-            Other ! {transmit, self(), Other, Seq_Num, M},
-            damn_simple_link_loop(Others, My_Up, All_Up, Seq_Num + 1);
-        % receive a message from the other end of the channel
-        {transmit, Other, Self, _Seq, {send, From, To, Seq, Msg}} -> 
+            Other ! {deliver, self(), Other, Seq_Num, M},
+            damn_simple_link_loop(State#dsl_state{
+                    seq =  Seq_Num + 1});
+        {deliver, _, Self, _, {send, From, To, S, Msg}} -> 
+            #dsl_state{my_up = My_Up} = State,
+            % translate the "send" in "deliver"
             case sets:is_element(To, My_Up) of true ->
-                To ! {deliver, From, To, Seq, Msg},
-                damn_simple_link_loop(Other, My_Up, All_Up, Seq_Num)
-            end
+                To ! {deliver, From, To, S, Msg},
+                damn_simple_link_loop(State)
+            end;
+        {deliver, Other, Self, _, {subscribe, Up, _}} -> 
+            All_Up = State#dsl_state.all_up,
+            damn_simple_link_loop(State#dsl_state{
+                    all_up = dict:append(Up, Other, All_Up)})
+    end.
+
+perfect_link(Downs) when is_list(Downs) ->
+    spawn_multiple_on_top(Downs, fun perfect_link_init/2).
+
+-record(pl_state, {
+    others = [], 
+    down = none, 
+    my_up = sets:new(), 
+    all_up = dict:new(),
+    seq = 0,
+    buffer = [],
+    delta = 100 % ms
+    }).
+
+perfect_link_init(Others, Down) ->
+    perfect_link_loop(#pl_state{others = Others, down = Down}).
+
+perfect_link_loop(State) ->
+    Self = self(),
+    receive
+        {subscribe, Up, _} = M ->
+            #pl_state{down = Down, others=Others, seq=Seq_Num, my_up = My_Up, 
+                    all_up=All_Up} = State,
+            % transmit the request to all others
+            [Down ! {deliver, self(), Other, S, M} || 
+                    {Other, S} <- lists:zip(Others, lists:seq(Seq_Num, Seq_Num +
+                    length(Others) - 1)), Other /= self()],
+            damn_simple_link_loop(State#pl_state{
+                    my_up = sets:add_element(Up, My_Up),
+                    all_up = dict:append(Up, self(), All_Up), 
+                    seq = Seq_Num + length(Others)}); 
+        {send, _, To, _, _}  = M ->
+            #pl_state{down = Down, seq = Seq_Num, all_up = All_Up} = State,
+            [Other] = dict:fetch(To, All_Up), % crash process if not found in dict
+            Down ! {send, self(), Other, Seq_Num, M},
+            damn_simple_link_loop(State#pl_state{
+                    seq =  Seq_Num + 1});
+        {deliver, _, Self, _, {send, From, To, S, Msg}} -> 
+            #pl_state{my_up = My_Up} = State,
+            % translate the "send" in "deliver"
+            case sets:is_element(To, My_Up) of true ->
+                To ! {deliver, From, To, S, Msg},
+                damn_simple_link_loop(State)
+            end;
+        {deliver, Other, Self, _, {subscribe, Up, _}} -> 
+            All_Up = State#pl_state.all_up,
+            damn_simple_link_loop(State#pl_state{
+                    all_up = dict:append(Up, Other, All_Up)})
     end.
 
 
