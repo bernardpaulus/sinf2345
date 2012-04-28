@@ -11,8 +11,6 @@
          ]).
 
 -export([damn_simple_link_init/1,
-        fair_loss_link_loop/3,
-        stubborn_link_loop/4,
         spawn_same_node/2,
         spawn_same_node/3,
         spawn_multiple/2,
@@ -118,6 +116,11 @@ damn_simple_link(Nodes) when is_list(Nodes) ->
     spawn_multiple(Nodes, [fun damn_simple_link_init/1 || 
             _ <- lists:seq(1, length(Nodes)) ]).
 
+% @type dsl_state() = #dsl_state{
+%    others = [pid()], 
+%    my_up = sets(), 
+%    all_up = dict(),
+%    seq = integer()}
 -record(dsl_state, {
     others = [], 
     my_up = sets:new(), 
@@ -129,6 +132,7 @@ damn_simple_link(Nodes) when is_list(Nodes) ->
 damn_simple_link_init(Others) ->
     damn_simple_link_loop(#dsl_state{others=Others}).
 
+% @spec (dsl_state()) -> term()
 % @doc handle events.
 % {subscribe, Up, _Seq} -> register process in the set of destinations, <br/> 
 % the full mesh got a {subscribe, Up, _Seq}, <br/>
@@ -179,8 +183,8 @@ perfect_link(Downs) when is_list(Downs) ->
 %    all_up = dict(),
 %    seq = integer(),
 %    buffer = list(),
-%    delta = integer(), % ms
-%    ttl = integer() % number of iterations
+%    delta = integer(), 
+%    ttl = integer() 
 %    }
 -record(pl_state, {
     others = [], 
@@ -206,7 +210,6 @@ perfect_link_loop(State0) ->
     % quickly
     State = perfect_link_loop_decrement_ttl(State0),
     Self = self(),
-    Delta = State#pl_state.delta,
     receive
         {subscribe, Up, _} = M ->
             #pl_state{down = Down, others=Others, seq=Seq_Num, my_up = My_Up, 
@@ -247,7 +250,7 @@ perfect_link_loop(State0) ->
             All_Up = State#pl_state.all_up,
             perfect_link_loop(State#pl_state{
                     all_up = dict:append(Up, Other, All_Up)})
-    after Delta ->
+    after State#pl_state.delta ->
         perfect_link_loop(State)
     end.
 
