@@ -172,6 +172,12 @@ damn_simple_link_loop(State) ->
                     all_up = dict:append(Up, Other, All_Up)})
     end.
 
+% @spec (Downs) -> [pid()]
+%   Downs = [Down]
+%   Down = pid()
+% @doc spawns a perfect link on top of pid(), which are assumed to be
+% damn_simple_link processes.
+% The perfect link performs message reordering.
 perfect_link(Downs) when is_list(Downs) ->
     spawn_multiple_on_top(Downs, [fun perfect_link_init/2 || 
             _ <- lists:seq(1, length(Downs))]).
@@ -197,10 +203,16 @@ perfect_link(Downs) when is_list(Downs) ->
     ttl = 64 % number of iterations
     }).
 
+% @doc starts the perfect link.
+% this corresponds to the init event
 perfect_link_init(Others, Down) ->
     Down ! {subscribe, self(), 0},
     perfect_link_loop(#pl_state{others = Others, down = Down}).
 
+% @doc loop while receiving events.
+% {subscribe, Up, Seq},
+% {send, From, To, Seq, Msg},
+% {deliver, From, To, Seq, Msg} -> used by the lower levels
 perfect_link_loop(State0) ->
     % loop each 100 ms when messages are delayed/reordered, upon message reception
     % otherwise
