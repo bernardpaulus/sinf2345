@@ -13,21 +13,29 @@ post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq) ->
     receive
         % add an internal new user
         {subscribe, User_Pid, Msg_Seq} ->
-            list:foreach(
-                % to all post office, send a subscribe external user
-                fun(Post_Office) ->
-                    % encapsulated message, the Msg_Seq is NOT incremented for 
-                    % each post_office, just globally
-                    Enc_Msg = {subscribe, User_Pid, self(), Msg_Seq},
-                    My_Link ! {transmit, self(), Post_Office, PO_Seq, Enc_Msg}
-                end,
-                PO_List),
-            post_office_loop(
-                sets:add_element(User_Pid,My_Users),
-                dict:append(User_Pid, self(), All_Users),
-                PO_List,
-                My_Link,
-                PO_Seq+1);
+            % check avoid double subscription
+            case sets:is_element(User_Pid, My_Users) of
+                true ->
+                    io:format("The user ~p has already subscribed to me~n", [User_Pid]),
+                    post_office_loop(My_Users, All_Users, PO_List, My_Link, PO_Seq);
+                false ->
+                    list:foreach(
+                        % to all post office, send a subscribe external user
+                        fun(Post_Office) ->
+                            % encapsulated message, the Msg_Seq is NOT incremented for 
+                            % each post_office, just globally
+                            Enc_Msg = {subscribe, User_Pid, self(), Msg_Seq},
+                            My_Link ! {transmit, self(), Post_Office, PO_Seq, Enc_Msg}
+                        end,
+                        PO_List),
+                    post_office_loop(
+                        sets:add_element(User_Pid,My_Users),
+                        % Reflection : should we check the subscription of a user to 2 different post office ?
+                        dict:append(User_Pid, self(), All_Users),
+                        PO_List,
+                        My_Link,
+                        PO_Seq+1)
+            end;
 
 
         % a user send a message to another user
