@@ -90,12 +90,16 @@ damn_simple_link_loop(State) ->
                     all_up = dict:append(Up, Other, All_Up)})
     end.
 
-% @spec (Downs) -> [pid()]
-%   Downs = [Down]
+% @spec (L) -> [pid()]
+%   L = [Down] | [Node]
 %   Down = pid()
-% @doc spawns a perfect link on top of pid(), which are assumed to be
-% damn_simple_link processes.
-% The perfect link performs message reordering.
+%   Node = node()
+% @doc spawns a perfect link either on top of Down, or on the corresponding
+% Node.
+% The [Down :: pid()] are assumed to be damn_simple_link processes.<br/>
+% The [Node :: node()] are alive erlang nodes. <br/>
+% This perfect link performs message reordering. <br/>
+% returns the list of pids of the perfect link processes spawned.
 perfect_link(Downs) when is_pid(hd(Downs)) ->
     spawn_multiple_on_top(Downs, [fun perfect_link_init/2 || 
             _ <- lists:seq(1, length(Downs))]);
