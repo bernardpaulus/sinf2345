@@ -68,12 +68,14 @@ damn_simple_link_loop(State) ->
                     my_up = sets:add_element(Up, My_Up),
                     all_up = dict:append(Up, self(), All_Up), 
                     seq = Seq_Num + length(Others)}); 
+
         {send, _, To, _, _}  = M ->
             #dsl_state{seq = Seq_Num, all_up = All_Up} = State,
             [Other] = dict:fetch(To, All_Up), % crash process if not found in dict
             Other ! {deliver, self(), Other, Seq_Num, M},
             damn_simple_link_loop(State#dsl_state{
                     seq =  Seq_Num + 1});
+
         {deliver, _, Self, _, {send, From, To, S, Msg}} -> 
             #dsl_state{my_up=My_Up} = State,
             % translate the "send" in "deliver"
@@ -81,6 +83,7 @@ damn_simple_link_loop(State) ->
                 To ! {deliver, From, To, S, Msg},
                 damn_simple_link_loop(State)
             end;
+
         {deliver, Other, Self, _, {subscribe, Up, _}} -> 
             All_Up = State#dsl_state.all_up,
             damn_simple_link_loop(State#dsl_state{
@@ -154,6 +157,7 @@ perfect_link_loop(State0) ->
                     my_up = sets:add_element(Up, My_Up),
                     all_up = dict:append(Up, self(), All_Up), 
                     seq = Seq_Num + length(Others)}); 
+
         {send, _, To, _, _}  = M ->
             #pl_state{down = Down, seq = Seq_Num, all_up = All_Up, ttl =
                 Max_TTL, buffer = Buffer} = State,
@@ -171,6 +175,7 @@ perfect_link_loop(State0) ->
                     perfect_link_loop(State#pl_state{
                             seq =  Seq_Num + 1})
             end;
+
         {deliver, _, Self, _, {send, From, To, S, Msg}} -> 
             #pl_state{my_up = My_Up} = State,
             % translate the "send" in "deliver"
@@ -178,10 +183,12 @@ perfect_link_loop(State0) ->
                 To ! {deliver, From, To, S, Msg},
                 perfect_link_loop(State)
             end;
+
         {deliver, Other, Self, _, {subscribe, Up, _}} -> 
             All_Up = State#pl_state.all_up,
             perfect_link_loop(State#pl_state{
                     all_up = dict:append(Up, Other, All_Up)})
+
     after State#pl_state.delta ->
         perfect_link_loop(State)
     end.

@@ -13,7 +13,8 @@
         ]).
 
 
-% safely spawn and register a process under name ProcName
+% @spec (Proc_Name :: atom() , Fun :: () -> term() ) -> pid() | false
+% @doc safely spawn and register a process under name ProcName
 % returns the pid if successfully spawned, false otherwise
 spawn_register(Proc_Name, Fun) ->
     Pid = spawn(
