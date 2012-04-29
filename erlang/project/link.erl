@@ -178,9 +178,14 @@ damn_simple_link_loop(State) ->
 % @doc spawns a perfect link on top of pid(), which are assumed to be
 % damn_simple_link processes.
 % The perfect link performs message reordering.
-perfect_link(Downs) when is_list(Downs) ->
+perfect_link(Downs) when is_pid(hd(Downs)) ->
     spawn_multiple_on_top(Downs, [fun perfect_link_init/2 || 
-            _ <- lists:seq(1, length(Downs))]).
+            _ <- lists:seq(1, length(Downs))]);
+
+perfect_link(Nodes) when is_atom(hd(Nodes)) ->
+    perfect_link(damn_simple_link(Nodes));
+
+perfect_link([]) -> []. % particular case
 
 % @type pl_state() = #pl_state{
 %    others = [pid()], 
