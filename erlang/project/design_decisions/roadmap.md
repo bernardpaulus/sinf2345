@@ -19,10 +19,10 @@ Perfect Detector.
                   ^                                            ?   ?            
                   |                                               ?             
      (Module) Best-Effort Broadcast                              ?              
-                                                               ?              
-                                                                              
-                                                               ?              
-                                                                       
+                                                                 ?              
+                                                                                
+                                                                 ?              
+                                                                         
                                                                      
                                                                      
 We must read the book, at least (Uniform Consensus in the Fail-Noisy Model,
