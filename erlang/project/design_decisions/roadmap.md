@@ -12,13 +12,13 @@ Perfect Detector.
                       (algo) Consensus-based Total order Broadcast
                                            ^                                  
                                            |                                  
-    (Module) Reliable Broacast ------------+--------- (Module) Consensus      
-                ^                                              ^              
-                |                                              |                     
-  (algo) Eager Reliable Broadcast                             ???             
-                ^                                            ?   ?            
-                |                                               ?             
-   (Module) Best-Effort Broadcast                              ?              
+      (Module) Reliable Broacast ------------+--------- (Module) Consensus      
+                  ^                                              ^              
+                  |                                              |                
+    (algo) Eager Reliable Broadcast                             ???             
+                  ^                                            ?   ?            
+                  |                                               ?             
+     (Module) Best-Effort Broadcast                              ?              
                                                                ?              
                                                                               
                                                                ?              
