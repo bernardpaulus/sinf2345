@@ -3,7 +3,12 @@
 % @doc link model library
 
 -module(link).
--import(lists, [map/2, partition/2, foreach/2]).
+-import(lists, [partition/2, foreach/2]).
+-import(spawn_utils, [
+        spawn_same_node/2,
+        spawn_multiple/2,
+        spawn_multiple_on_top/2
+        ]).
 
 % use this
 -export([damn_simple_link/1,
@@ -11,12 +16,6 @@
          ]).
 
 -export([damn_simple_link_init/1,
-        spawn_same_node/2,
-        spawn_same_node/3,
-        spawn_multiple/2,
-        spawn_multiple/3,
-        spawn_multiple_on_top/2,
-        spawn_multiple_on_top/3,
         perfect_link_init/2,
         perfect_link_loop/1
         ]).
@@ -24,90 +23,6 @@
 % @type sets() = erlang_sets
 % @type dict() = erlang_dict
 
-% @spec (Nodes, Funs, Argss) -> [Pids :: pid()]
-%   Nodes = [node()]
-%   Funs = [Fun :: function()]
-%   Argss = [Args]
-%   Args = [term()]
-% @doc for each (Node, Fun, Args), spawn Fun on node Node with [Pids | Args] as
-% argument.
-% Pids is the list of the Pid of all those spawned processes.
-spawn_multiple(Nodes, Funs, Argss) when 
-        is_list(Nodes), is_list(Funs), is_list(Argss),
-        length(Nodes) == length(Funs), length(Funs) == length(Argss) ->
-    Parent = self(),
-    % acknowledge, then start Fun with the Pids and the args as argument
-    Start_Fun = fun(Fun, Args) ->
-            fun() -> 
-                receive {Parent, Pids} -> 
-                    Parent ! {ack, self()},
-                    apply(Fun, [Pids | Args])
-                end
-            end
-        end,
-    Pids = [spawn(Node, Start_Fun(Fun, Args)) || 
-                    {Node, Fun, Args} <- lists:zip3(Nodes, Funs, Argss)],
-    % send list of Pids
-    [ Pid ! {Parent, Pids} || Pid <- Pids ],
-    % ack
-    [receive {ack, Pid} -> ok end || Pid <- Pids],
-    Pids.
-
-% @spec (Nodes, Funs) -> [Pids :: pid()]
-%   Nodes = [node()]
-%   Funs = [Fun :: function()]
-% @equiv spawn_multiple(Nodes, Funs, [[] || _ <- lists:seq(1, length(Funs))])
-spawn_multiple(Nodes, Funs) when is_list(Nodes), is_list(Funs), 
-        length(Nodes) == length(Funs) ->
-    spawn_multiple(Nodes, Funs, [[] || _ <- lists:seq(1, length(Funs))]).
-
-
-% @spec (Downs, Funs) -> [Pids :: pid()]
-%   Downs = [Down :: pid()]
-%   Funs = [Fun :: function()]
-% @equiv spawn_multiple_on_top(Downs, Funs, [[] || _ <- lists:seq(1, length(Funs))])
-spawn_multiple_on_top(Downs, Funs) when is_list(Downs), is_list(Funs), 
-        length(Downs) == length(Funs) ->
-    spawn_multiple_on_top(Downs, Funs, [[] || _ <- lists:seq(1, length(Funs))]).
-
-
-% @spec (Downs, Funs, Argss) -> [Pids :: pid()]
-%   Downs = [Down :: pid()]
-%   Funs = [Fun :: function()]
-%   Argss = [Args]
-%   Args = [term()]
-% @doc spawn multiple processes, each on top of a process Down.
-% spawn each Fun on the same node as the corresponding Down, passing 
-% [Others, Down | Args] as argument.
-spawn_multiple_on_top(Downs, Funs, Argss) when
-        is_list(Downs), is_list(Funs), is_list(Argss),
-        length(Downs) == length(Funs), length(Funs) == length(Argss) ->
-    Nodes = [node(Down) || Down <- Downs],
-    Argss1 = [ [Down | Args] || {Down, Args} <- lists:zip(Downs, Argss)],
-    spawn_multiple(Nodes, Funs, Argss1).
-
-% @spec (Down, Fun) -> pid()
-%   Down = pid(),
-%   Fun = () -> T
-% @equiv spawn_same_node(Down, Fun, [])
-% @doc spawns Fun on the same node as Down.
-spawn_same_node(Down, Fun) when is_function(Fun, 0) ->
-    spawn_same_node(Down, Fun, []).
-
-% @spec (Down, Fun, Args) -> pid()
-%   Down = pid(),
-%   Fun = function(),
-%   Args = [term()]
-% @doc spawns Fun with the list of arguments Args on the same node as Down.
-spawn_same_node(Down, Fun, Args) when is_function(Fun), is_list(Args) ->
-    Parent = self(),
-    Pid = spawn(node(Down), fun() ->
-            Parent ! {ack, self()},
-            apply(Fun, Args)
-        end),
-    % wait for ack
-    receive {ack, Pid} -> ok end,
-    Pid.
 
 % @spec (Nodes::[node()]) -> [pid()]
 % @doc spawn a simple_link process on each node, and returns their pids.

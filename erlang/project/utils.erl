@@ -2,7 +2,6 @@
 
 -module(utils).
 -export([
-        spawn_register/2, 
         sleep/1, 
         time_of_the_day/0, 
         dummy_receiver/0,
@@ -15,28 +14,6 @@
         seed_once/0,
         subroutine/1, subroutine/2, subroutine/3
         ]).
-
-
-% safely spawn and register a process under name ProcName
-% returns the pid if successfully spawned, false otherwise
-spawn_register(Proc_Name, Fun) ->
-    Pid = spawn(
-            fun() -> 
-                receive 
-                    register_ok -> Fun(); % only start Fun when registered
-                    register_ko -> exit(normal)
-                end
-            end
-        ),
-    try register(Proc_Name, Pid) of
-        true -> Pid ! register_ok,
-                Pid % return pid
-    catch 
-        error:badarg -> 
-            Pid ! register_ko,
-            false % badarg is thrown when there exist a Pid that is
-                  % already registered (and alive)
-    end.
 
 
 % sleep T milliseconds
