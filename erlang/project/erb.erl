@@ -23,9 +23,9 @@ start([]) -> [].
 
 % @spec (Others :: [pid()], Down :: pid()) -> void
 % @doc initializes the erb process
-init(Others, Down) ->
+init(Down) ->
     Down ! {subscribe, self()},
-    erb_loop(#erb_state{others = Others, down = Down}).
+    erb_loop(#erb_state{down = Down}).
 
 
 erb_loop(State) ->
