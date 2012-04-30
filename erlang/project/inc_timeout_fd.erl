@@ -28,7 +28,7 @@ start([]) -> [].
     }).
 
 init(Others, Down) ->
-    Down ! {susbcribe, self()},
+    Down ! {subscribe, self()},
     erlang:send_after(?delta, self(), {timeout}),
     inc_timeout_loop(#it_state{
         down = Down,
@@ -58,7 +58,7 @@ inc_timeout_loop(State) ->
         {timeout} ->
             #it_state{alive = Alive, suspected = Suspected, delay = Delay,
                     others = Others} = State,
-            case sets:size(sets:intesection(Alive, Suspected)) of
+            case sets:size(sets:intersection(Alive, Suspected)) of
                 X when X > 0 ->
                     State1 = State#it_state{delay = Delay + ?delta};
                 0 -> 
@@ -69,15 +69,20 @@ inc_timeout_loop(State) ->
                         my_up = My_Ups, all_up = All_Up} = State_Acc,
                     Is_Alive = sets:is_element(P, Alive),
                     Is_Suspect = sets:is_element(P, Suspect),
+                    Ups_P = sets:from_list(
+                        case dict:find(P, All_Up) of
+                            {ok, Values} -> Values;
+                            error -> []
+                        end),
                     if 
                         (not Is_Alive) and Is_Suspect ->
                             NewS = sets:add_element(P, Suspect),
-                            Suscribers = sets:from_list(dict:fetch(P, All_Up)),
-                            [Up ! {suspect, P, Suscribers} || Up <- My_Ups];
+                            [Up ! {suspect, P, Ups_P} || 
+                                    Up <- sets:to_list(My_Ups)];
                         Is_Alive and Is_Suspect ->
                             NewS = sets:del_element(P, Suspect),
-                            Suscribers = sets:from_list(dict:fetch(P, All_Up)),
-                            [Up ! {restore, P, Suscribers} || Up <- My_Ups];
+                            [Up ! {restore, P, Ups_P} || 
+                                    Up <- sets:to_list(My_Ups)];
                         true ->
                             NewS = Suspect
                     end,
