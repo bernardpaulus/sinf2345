@@ -104,6 +104,8 @@ perfect_link(Nodes) when is_atom(hd(Nodes)) ->
 
 perfect_link([]) -> []. % particular case
 
+-define(delta, 100).
+
 % @type pl_state() = #pl_state{
 %    others = [pid()], 
 %    down = pid(), 
@@ -120,7 +122,7 @@ perfect_link([]) -> []. % particular case
     my_up = sets:new(), 
     all_up = dict:new(),
     buffer = [],
-    delta = 100, % ms
+    delta = ?delta, % ms
     ttl = 64 % number of iterations
     }).
 
@@ -195,4 +197,7 @@ perfect_link_loop_decrement_ttl(State) ->
     TTL_Dec = [ {TTL - 1, Msg} || {TTL, Msg} <- Old_Buffer],
     {TTL_Zero, Buffer} = partition(fun({TTL, _}) ->  TTL == 0 end, TTL_Dec),
     foreach(fun({0, Msg}) -> Down ! Msg end, TTL_Zero),
-    State#pl_state{buffer = Buffer}.
+    State#pl_state{
+        buffer = Buffer,
+        delta = if  Buffer == [] -> infinity;
+                    true -> ?delta end}.

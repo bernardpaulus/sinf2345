@@ -3,6 +3,7 @@
 -module(utils).
 -export([
         sleep/1, 
+        dev_null/0,
         time_of_the_day/0, 
         dummy_receiver/0,
         dummy_receiver_loop/0,
@@ -37,6 +38,8 @@ dummy_receiver_loop() ->
         dummy_receiver_loop()
     end.
 
+dev_null() -> spawn(fun dev_null_loop/0).
+dev_null_loop() -> receive _ -> ignore end, dev_null_loop().
 
 % an echo process:
 % upon reception of {Pid, Msg}, sends Msg to the target
