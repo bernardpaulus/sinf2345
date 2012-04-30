@@ -13,7 +13,7 @@
         down = none}).
 
 start(Downs) when is_pid(hd(Downs)) ->
-    spawn_multiple_on_top(Downs, [fun init/2 || 
+    spawn_multiple_on_top(Downs, [fun init/1 || 
             _ <- lists:seq(1,length(Downs))]);
 
 start(Nodes) when is_atom(hd(Nodes)) ->
@@ -21,7 +21,7 @@ start(Nodes) when is_atom(hd(Nodes)) ->
 
 start([]) -> [].
 
-% @spec (Others :: [pid()], Down :: pid()) -> void
+% @spec (Down :: pid()) -> void
 % @doc initializes the erb process
 init(Down) ->
     Down ! {subscribe, self()},
