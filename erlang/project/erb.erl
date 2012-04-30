@@ -3,13 +3,24 @@
 % @author martin trigaux
 
 -module(erb).
+-import(spawn_utils, [spawn_multiple_on_top/2]).
 -compile(export_all).
 
-% @type beb_state() = #beb_state{documentation = code}
+% @type erb_state() = #erb_state{documentation = code}
 -record(erb_state, {
         my_up = sets:new(),
         delivered = [],
         down = none}).
+
+start(Downs) when is_pid(hd(Downs)) ->
+    spawn_multiple_on_top(Downs, [fun init/2 || 
+            _ <- lists:seq(1,length(Downs))]);
+
+start(Nodes) when is_atom(hd(Nodes)) ->
+    start(erb:start(Nodes));
+
+start([]) -> [].
+
 
 
 erb_loop(State) ->
