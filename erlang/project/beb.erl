@@ -1,5 +1,6 @@
 % @doc best effort broadcast abstraction
 % @author bernard paulus
+% @author martin trigaux
 
 -module(beb).
 -import(spawn_utils, [spawn_multiple_on_top/2]).
