@@ -10,8 +10,7 @@
 -record(beb_state, {
         my_up = sets:new(),
         others = [],
-        down = none,
-        seq = 1}).
+        down = none}).
 
 % @spec (L) -> [pid()]
 %   L = [Down] | [Node]
@@ -37,7 +36,7 @@ start([]) -> [].
 % @spec (Others :: [pid()], Down :: pid()) -> void
 % @doc initializes the beb process
 init(Others, Down) ->
-    Down ! {subscribe, self(), 0},
+    Down ! {subscribe, self()},
     beb_loop(#beb_state{others = Others, down = Down}).
 
 
@@ -47,21 +46,18 @@ init(Others, Down) ->
 beb_loop(State) ->
     Self = self(),
     receive
-        {subscribe, Pid, _} ->
+        {subscribe, Pid} ->
             #beb_state{my_up = Ups} = State,
             beb_loop(State#beb_state{
                     my_up = sets:add_element(Pid, Ups)});
 
-        {broadcast, _From, _Seq, _Msg} = M -> 
-            #beb_state{down = D, others = Others, seq = Seq_Num} = State,
-            [D ! {send, self(), Other, Seq, M} || {Other, Seq} <-
-                    lists:zip(Others, lists:seq(Seq_Num, Seq_Num +
-                    length(Others) - 1))],
-            beb_loop(State#beb_state{
-                    seq = Seq_Num + length(Others)});
+        {broadcast, _From, _Msg} = M -> 
+            #beb_state{down = D, others = Others} = State,
+            [D ! {send, self(), Other, M} || Other <- Others],
+            beb_loop(State);
 
-        {deliver, _ , Self, _, {broadcast, From, Seq_Msg, Msg}} ->
+        {deliver, _ , Self, {broadcast, From, Msg}} ->
             #beb_state{my_up = Ups} = State,
-            [Up ! {deliver, From, Msg, Seq_Msg} || Up <- sets:to_list(Ups)],
+            [Up ! {deliver, From, Msg} || Up <- sets:to_list(Ups)],
             beb_loop(State)
     end.
