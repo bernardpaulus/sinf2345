@@ -4,7 +4,7 @@
 
 -module(beb).
 -import(spawn_utils, [spawn_multiple_on_top/2]).
--compile(export_all).
+-export([start/1]).
 
 % @type beb_state() = #beb_state{documentation = code}
 -record(beb_state, {
