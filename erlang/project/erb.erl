@@ -21,12 +21,17 @@ start(Nodes) when is_atom(hd(Nodes)) ->
 
 start([]) -> [].
 
+% @spec (Others :: [pid()], Down :: pid()) -> void
+% @doc initializes the erb process
+init(Others, Down) ->
+    Down ! {subscribe, self()},
+    erb_loop(#erb_state{others = Others, down = Down}).
 
 
 erb_loop(State) ->
     Self = self(),
     receive
-        {subscribe, Pid, _} ->
+        {subscribe, Pid} ->
             #erb_state{my_up = Ups} = State,
             erb_loop(State#erb_state{
                     my_up = sets:add_element(Pid, Ups)});

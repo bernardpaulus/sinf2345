@@ -25,7 +25,7 @@
 % returns the list of pids of the perfect link processes spawned.
 start(Downs) when is_pid(hd(Downs)) ->
     spawn_multiple_on_top(Downs, [fun init/2 || 
-            _ <- lists:seq(1,length(Downs))]); % ??? c'est quoi ça ?
+            _ <- lists:seq(1,length(Downs))]);
 
 start(Nodes) when is_atom(hd(Nodes)) ->
     start(link:perfect_link(Nodes));
