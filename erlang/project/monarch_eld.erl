@@ -7,7 +7,7 @@
 -compile(export_all).
 
 -record(eld_state, {
-        same_level = [],
+        peers = [],
         my_up = sets:new(),
         suspected = sets:new(),
         leader = nil}).
@@ -41,15 +41,35 @@ meld_loop(State) ->
 
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
-            #eld_state{suspected = S} = State.
-            meld_loop(State#eld_state{
-                        suspected = sets:union(Subscribers, S)});
+            #eld_state{suspected = S, leader = Lead, peers=Peers, suspected=Suspected} = State.
+            case sets:is_element(Lead, Subscribers) of
+                true ->
+                    io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
+                    New_Leader = max_rank(Peers, sets:subtract(Peers, Suspected)),
+                    % TODO advertise up
+                    meld_loop(State#eld_state{
+                            suspected = sets:union(Subscribers, S),
+                            leader = New_Leader});
+                false ->
+                    % don't care
+                    meld_loop(State#eld_state{
+                             suspected = sets:union(Subscribers, S)});
 
         % oups it seems you are not dead after all, welcome back
         {restore, _From, Subscriber} ->
-            #eld_state{suspected = S} = State.
+            #eld_state{suspected = Suspected, leader = Leader} = State,
+            Resurect_Leader = max_rank(Peers, sets:subtract(Peers, sets:subtract(Suspected, Subscribers))),
+            case Leader == Resurect_Leader of
+                true ->
+                    % the resurection had no effect on the leader election
+                    ok;
+                false ->
+                    % we have a new leader !
+                    % TODO advertise leader
+                    ok
             meld_loop(State#eld_state{
-                        suspected = sets:subtract(S, Subscribers)})
+                        suspected = sets:subtract(S, Subscribers),
+                        leader = Resurect_Leader})
 
     end.
 
@@ -60,5 +80,5 @@ max_rank([], Trusted) -> {error, no_process_trusted};
 max_rank([H | T], Trusted) ->
     case sets:is_element(H, Trusted) of
         true -> H;
-        false -> max_rank(H, Trusted)
+        false -> max_rank(T, Trusted)
     end.
