@@ -7,10 +7,9 @@
 -compile(export_all).
 
 -record(eld_state, {
-        others = [],
+        same_level = [],
         my_up = sets:new(),
-        suspected = sets:new(),
-        suspected_sub = sets:new()}).
+        suspected = sets:new()}).
 
 meld_loop(State) ->
     Self= self()
@@ -27,18 +26,16 @@ meld_loop(State) ->
                 meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
 
         % add a pid and its subscribers to the list of considered dead
-        {suspect, _From, Pid, Subscribers} ->
-            #eld_state{suspected = S, suspected_sub = SS} = State.
+        {suspect, _From, Subscribers} ->
+            #eld_state{suspected = S} = State.
             meld_loop(State#eld_state{
-                        suspected = sets:add_element(Pid, S),
-                        suspected_sub = sets:union(Subscribers, SS)});
+                        suspected = sets:union(Subscribers, S)});
 
         % oups it seems you are not dead after all, welcome back
-        {restore, _From, Pid, Subscriber} ->
-            #eld_state{suspected = S, suspected_sub = SS} = State.
+        {restore, _From, Subscriber} ->
+            #eld_state{suspected = S} = State.
             meld_loop(State#eld_state{
-                        suspected = sets:del_element(Pid, S),
-                        suspected_sub = sets:subtract(SS, Subscribers)})
+                        suspected = sets:subtract(S, Subscribers)})
 
     end.
 
