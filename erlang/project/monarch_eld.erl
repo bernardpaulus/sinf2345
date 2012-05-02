@@ -24,7 +24,7 @@ start(Fail_Dets, Perfect_Links) when
 init(Peers, FD, Link) ->
     Link ! {subscribe, self()},
     FD ! {subscribe, self()},
-    meld_loop(State#eld_state{peers = Peers}).
+    meld_loop(#eld_state{peers = Peers, p2p_link = Link}).
 
 meld_loop(State) ->
     Self= self(),
