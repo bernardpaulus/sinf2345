@@ -12,6 +12,19 @@
         suspected = sets:new(),
         leader = nil}).
 
+
+start(Fail_Dets, Perfect_Links) when 
+        is_pid(hd(Fail_Dets)), is_pid(hd(Perfect_Links)),
+        length(Fail_Dets) == length(Perfect_Links) ->
+    spawn_multiple_on_top(Fail_Dets, 
+            [fun init/3 || _ <- lists:seq(1,length(Downs))],
+            [[Link] || Link <- Perfect_Links ).
+
+init(Peers, FD, Link) ->
+    Link ! {subscribe, self()},
+    FD ! {subscribe, self()},
+    % TODO
+
 meld_loop(State) ->
     Self= self()
     receive
