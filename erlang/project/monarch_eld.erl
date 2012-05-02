@@ -39,7 +39,8 @@ meld_loop(State) ->
                     io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
                     meld_loop(State);
                 false ->
-                    meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
+                    meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)})
+            end;
 
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
@@ -55,7 +56,8 @@ meld_loop(State) ->
                 false ->
                     % don't care
                     meld_loop(State#eld_state{
-                             suspected = sets:union(Subscribers, S)});
+                             suspected = sets:union(Subscribers, S)})
+            end;
 
         % oups it seems you are not dead after all, welcome back
         {restore, _From, Subscriber} ->
