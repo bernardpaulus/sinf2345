@@ -27,7 +27,7 @@ init(Peers, Down, Beb, Link) ->
     Link ! {subscribe, self()},
     Beb ! {subscribe, self()},
     Down ! {subscribe, self()},
-    epoch_loop(#epoch_state{peers = Peers, down = Down, p2p_link = Link, beb = Beb, lastts = 0}).
+    epoch_loop(#epoch_state{peers = Peers, down = Down, p2p_link = Link, beb = Beb, lastts = rank(Peers)}).
 
 epoch_loop(State) ->
     Self= self(),
@@ -76,12 +76,12 @@ epoch_loop(State) ->
             end
     end.
 
-%% % @spec ([pid()], Trusted :: sets:set()) -> 
-%% %   Leader :: pid() | {error, no_process_trusted}
-%% % @doc returns the first trusted process
-%% max_rank([], _Trusted) -> {error, no_process_trusted};
-%% max_rank([H | T], Trusted) ->
-%%     case sets:is_element(H, Trusted) of
-%%         true -> H;
-%%         false -> max_rank(T, Trusted)
-%%     end.
+
+rank(Peers) -> rank(self(), Peers);
+rank(Node, []) -> {error, no_match found};
+rank(Node, [H | T]) ->
+    % TODO return index !
+    case H == Node of
+        true -> H;
+        false -> rank(Node, T)
+    end.
