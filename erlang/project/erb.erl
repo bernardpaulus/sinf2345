@@ -1,4 +1,5 @@
 % @doc eager reliable broadcast abstraction
+% based on algo 3.3 p80
 % @author bernard paulus
 % @author martin trigaux
 
