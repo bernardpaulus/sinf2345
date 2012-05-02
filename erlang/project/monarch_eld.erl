@@ -5,6 +5,7 @@
 
 -module(monarch_eld).
 -compile(export_all).
+-import(spawn_utils, [spawn_multiple_on_top/3]).
 
 -record(eld_state, {
         peers = [],
@@ -16,32 +17,33 @@
 start(Fail_Dets, Perfect_Links) when 
         is_pid(hd(Fail_Dets)), is_pid(hd(Perfect_Links)),
         length(Fail_Dets) == length(Perfect_Links) ->
-    spawn_multiple_on_top(Fail_Dets, 
-            [fun init/3 || _ <- lists:seq(1,length(Downs))],
-            [[Link] || Link <- Perfect_Links ).
+                    spawn_multiple_on_top(Fail_Dets, 
+                            [fun init/3 || _ <- lists:seq(1,length(Fail_Dets))],
+                            [[Link] || Link <- Perfect_Links] ).
 
 init(Peers, FD, Link) ->
     Link ! {subscribe, self()},
     FD ! {subscribe, self()},
     % TODO
+    ok.
 
 meld_loop(State) ->
-    Self= self()
+    Self= self(),
     receive
         % add a process to the eligeable list
         {subscribe, Pid} ->
-            #eld_state{my_up = Up} = State.
+            #eld_state{my_up = Up} = State,
             % check avoid double subscription
             case sets:is_element(Pid, Up) of
                 true ->
                     io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
                     meld_loop(State);
                 false ->
-                meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
+                    meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
 
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
-            #eld_state{suspected = S, leader = Lead, peers=Peers, suspected=Suspected} = State.
+            #eld_state{suspected = S, leader = Lead, peers=Peers, suspected=Suspected} = State,
             case sets:is_element(Lead, Subscribers) of
                 true ->
                     io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
@@ -67,6 +69,7 @@ meld_loop(State) ->
                     % we have a new leader !
                     % TODO advertise leader
                     ok
+            end,
             meld_loop(State#eld_state{
                         suspected = sets:subtract(S, Subscribers),
                         leader = Resurect_Leader})
@@ -76,7 +79,7 @@ meld_loop(State) ->
 % @spec ([pid()], Trusted :: sets:set()) -> 
 %   Leader :: pid() | {error, no_process_trusted}
 % @doc returns the first trusted process
-max_rank([], Trusted) -> {error, no_process_trusted};
+max_rank([], _Trusted) -> {error, no_process_trusted};
 max_rank([H | T], Trusted) ->
     case sets:is_element(H, Trusted) of
         true -> H;
