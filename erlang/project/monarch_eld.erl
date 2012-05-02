@@ -24,8 +24,7 @@ start(Fail_Dets, Perfect_Links) when
 init(Peers, FD, Link) ->
     Link ! {subscribe, self()},
     FD ! {subscribe, self()},
-    % TODO
-    ok.
+    meld_loop(State#eld_state{peers = Peers}).
 
 meld_loop(State) ->
     Self= self(),
@@ -44,12 +43,12 @@ meld_loop(State) ->
 
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
-            #eld_state{leader = Lead, peers=Peers, suspected=Suspected, my_up = My_Up} = State,
-            case sets:is_element(Lead, Subscribers) of
+            #eld_state{leader = Leader, peers=Peers, suspected=Suspected, my_up = My_Up} = State,
+            case sets:is_element(Leader, Subscribers) of
                 true ->
                     io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
                     New_Leader = max_rank(Peers, sets:subtract(Peers, Suspected)),
-                    [ Up ! {leader, Self, New_Leader} || Up <- My_Up ],
+                    [ Up ! {trust, Self, New_Leader} || Up <- My_Up ],
                     meld_loop(State#eld_state{
                                 suspected = sets:union(Subscribers, Suspected),
                                 leader = New_Leader});
@@ -60,8 +59,8 @@ meld_loop(State) ->
             end;
 
         % oups it seems you are not dead after all, welcome back
-        {restore, _From, Subscriber} ->
-            #eld_state{suspected = Suspected, leader = Leader, my_up = My_Up} = State,
+        {restore, _From, Subscribers} ->
+            #eld_state{suspected = Suspected, peers = Peers, leader = Leader, my_up = My_Up} = State,
             Resurect_Leader = max_rank(Peers, sets:subtract(Peers, sets:subtract(Suspected, Subscribers))),
             case Leader == Resurect_Leader of
                 true ->
@@ -69,11 +68,11 @@ meld_loop(State) ->
                     ok;
                 false ->
                     % we have a new leader !
-                    [ Up ! {leader, Self, New_Leader} || Up <- My_Up ],
+                    [ Up ! {leader, Self, Resurect_Leader} || Up <- My_Up ],
                     ok
             end,
             meld_loop(State#eld_state{
-                        suspected = sets:subtract(S, Subscribers),
+                        suspected = sets:subtract(Suspected, Subscribers),
                         leader = Resurect_Leader})
 
     end.
