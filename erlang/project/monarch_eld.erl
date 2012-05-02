@@ -17,9 +17,14 @@ meld_loop(State) ->
     receive
     	% add a process to the eligeable list
     	{subscribe, Pid} ->
-    		% TODO check double subscription
     		#eld_state{all_up = Up} = State.
-    		meld_loop(State#eld_state{all_up = sets:add_element(Pid, Up)});
+    		% check avoid double subscription
+            case sets:is_element(Pid, Up) of
+                true ->
+                    io:format("The user ~p has already subscribed to me~n", [User_Pid]),
+                    meld_loop(State);
+                false ->
+    				meld_loop(State#eld_state{all_up = sets:add_element(Pid, Up)});
 
     	% add a pid and its subscribers to the list of considered dead
     	{suspect, _From, Pid, Subscribers} ->
