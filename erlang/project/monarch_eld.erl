@@ -1,4 +1,5 @@
 % @doc Monarchical Eventual Leader Detector
+% based on algo 2.8 p 57
 % @author bernard paulus
 % @author martin trigaux
 
