@@ -9,7 +9,8 @@
 -record(eld_state, {
         same_level = [],
         my_up = sets:new(),
-        suspected = sets:new()}).
+        suspected = sets:new(),
+        leader = nil}).
 
 meld_loop(State) ->
     Self= self()
