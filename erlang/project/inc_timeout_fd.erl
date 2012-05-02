@@ -29,7 +29,7 @@ start([]) -> [].
 
 init(Others, Down) ->
     Down ! {subscribe, self()},
-    erlang:send_after(?delta, self(), {timeout, self()}),
+    erlang:send_after(?delta, self(), {timeout}),
     inc_timeout_loop(#it_state{
         down = Down,
         others = Others,
@@ -56,7 +56,7 @@ inc_timeout_loop(State) ->
                     ups_of_others = dict:append(Other, Up, O_Ups)});
 
 
-        {timeout, Self} ->
+        {timeout} ->
             #it_state{alive = Alive, suspected = Suspected, delay = Delay,
                     others = Others} = State,
             %io:format("~p delay: ~p~n", [Self, Delay]),
@@ -69,7 +69,7 @@ inc_timeout_loop(State) ->
             State2 = lists:foldl(fun suspect_restore/2, State1, 
                     [O || O <- Others, O /= self()]),
             State3 = State2#it_state{alive = sets:new()}, % empty alive
-            erlang:send_after(State3#it_state.delay, Self, {timeout, Self}),
+            erlang:send_after(State3#it_state.delay, Self, {timeout}),
             inc_timeout_loop(State3);
 
 
