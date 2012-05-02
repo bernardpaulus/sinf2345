@@ -28,7 +28,6 @@ post_office_loop(My_Users, All_Users, PO_List, My_Link) ->
                         PO_List),
                     post_office_loop(
                         sets:add_element(User_Pid,My_Users),
-                        % Reflection : should we check the subscription of a user to 2 different post office ?
                         dict:append(User_Pid, self(), All_Users),
                         PO_List,
                         My_Link)

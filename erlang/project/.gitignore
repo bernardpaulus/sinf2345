@@ -5,3 +5,6 @@
 
 # vim temp files
 *.swp
+
+# stupid temp files
+*~

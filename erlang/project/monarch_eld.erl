@@ -8,24 +8,23 @@
 -import(spawn_utils, [spawn_multiple_on_top/3]).
 
 -record(eld_state, {
-        peers = [],
-        my_up = sets:new(),
-        suspected = sets:new(),
-        leader = nil}).
-
+          peers = [],
+          my_up = sets:new(),
+          suspected = sets:new(),
+          leader = none,
+          p2p_link = none}). % p2p links to up nodes
 
 start(Fail_Dets, Perfect_Links) when 
-        is_pid(hd(Fail_Dets)), is_pid(hd(Perfect_Links)),
-        length(Fail_Dets) == length(Perfect_Links) ->
+      is_pid(hd(Fail_Dets)), is_pid(hd(Perfect_Links)),
+      length(Fail_Dets) == length(Perfect_Links) ->
                     spawn_multiple_on_top(Fail_Dets, 
-                            [fun init/3 || _ <- lists:seq(1,length(Fail_Dets))],
-                            [[Link] || Link <- Perfect_Links] ).
+                                          [fun init/3 || _ <- lists:seq(1,length(Fail_Dets))],
+                                          [[Link] || Link <- Perfect_Links] ).
 
 init(Peers, FD, Link) ->
     Link ! {subscribe, self()},
     FD ! {subscribe, self()},
-    % TODO
-    ok.
+    meld_loop(#eld_state{peers = Peers, p2p_link = Link}).
 
 meld_loop(State) ->
     Self= self(),
@@ -44,24 +43,24 @@ meld_loop(State) ->
 
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
-            #eld_state{suspected = S, leader = Lead, peers=Peers, suspected=Suspected} = State,
-            case sets:is_element(Lead, Subscribers) of
+            #eld_state{leader = Leader, peers=Peers, suspected=Suspected, my_up = My_Up} = State,
+            case sets:is_element(Leader, Subscribers) of
                 true ->
                     io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
                     New_Leader = max_rank(Peers, sets:subtract(Peers, Suspected)),
-                    % TODO advertise up
+                    [ Up ! {trust, Self, New_Leader} || Up <- My_Up ],
                     meld_loop(State#eld_state{
-                            suspected = sets:union(Subscribers, S),
-                            leader = New_Leader});
+                                suspected = sets:union(Subscribers, Suspected),
+                                leader = New_Leader});
                 false ->
                     % don't care
                     meld_loop(State#eld_state{
-                             suspected = sets:union(Subscribers, S)})
+                                suspected = sets:union(Subscribers, Suspected)})
             end;
 
         % oups it seems you are not dead after all, welcome back
-        {restore, _From, Subscriber} ->
-            #eld_state{suspected = Suspected, leader = Leader} = State,
+        {restore, _From, Subscribers} ->
+            #eld_state{suspected = Suspected, peers = Peers, leader = Leader, my_up = My_Up} = State,
             Resurect_Leader = max_rank(Peers, sets:subtract(Peers, sets:subtract(Suspected, Subscribers))),
             case Leader == Resurect_Leader of
                 true ->
@@ -69,11 +68,11 @@ meld_loop(State) ->
                     ok;
                 false ->
                     % we have a new leader !
-                    % TODO advertise leader
+                    [ Up ! {leader, Self, Resurect_Leader} || Up <- My_Up ],
                     ok
             end,
             meld_loop(State#eld_state{
-                        suspected = sets:subtract(S, Subscribers),
+                        suspected = sets:subtract(Suspected, Subscribers),
                         leader = Resurect_Leader})
 
     end.
