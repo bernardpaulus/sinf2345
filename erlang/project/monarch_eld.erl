@@ -7,10 +7,9 @@
 -compile(export_all).
 
 -record(eld_state, {
-        others = [],
-        all_up = sets:new(),
-        suspected = sets:new(),
-        suspected_sub = sets:new()}).
+        same_level = [],
+        my_up = sets:new(),
+        suspected = sets:new()}).
 
 
 start(Fail_Dets, Perfect_Links) when 
@@ -26,27 +25,30 @@ init(Peers, FD, Link) ->
     % TODO
 
 meld_loop(State) ->
-	Self= self()
+    Self= self()
     receive
-    	% add a process to the eligeable list
-    	{subscribe, Pid} ->
-    		% TODO check double subscription
-    		#eld_state{all_up = Up} = State.
-    		meld_loop(State#eld_state{all_up = sets:add_element(Pid, Up)});
+        % add a process to the eligeable list
+        {subscribe, Pid} ->
+            #eld_state{my_up = Up} = State.
+            % check avoid double subscription
+            case sets:is_element(Pid, Up) of
+                true ->
+                    io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
+                    meld_loop(State);
+                false ->
+                meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
 
-    	% add a pid and its subscribers to the list of considered dead
-    	{suspect, _From, Pid, Subscribers} ->
-    		#eld_state{suspected = S, suspected_sub = SS} = State.
-    		meld_loop(State#eld_state{
-                    	suspected = sets:add_element(Pid, S),
-                    	suspected_sub = sets:union(Subscribers, SS)});
+        % add a pid and its subscribers to the list of considered dead
+        {suspect, _From, Subscribers} ->
+            #eld_state{suspected = S} = State.
+            meld_loop(State#eld_state{
+                        suspected = sets:union(Subscribers, S)});
 
-    	% oups it seems you are not dead after all, welcome back
-    	{restore, _From, Pid, Subscriber} ->
-    		#eld_state{suspected = S, suspected_sub = SS} = State.
-    		meld_loop(State#eld_state{
-                    	suspected = sets:del_element(Pid, S),
-                    	suspected_sub = sets:subtract(SS, Subscribers)})
+        % oups it seems you are not dead after all, welcome back
+        {restore, _From, Subscriber} ->
+            #eld_state{suspected = S} = State.
+            meld_loop(State#eld_state{
+                        suspected = sets:subtract(S, Subscribers)})
 
     end.
 
