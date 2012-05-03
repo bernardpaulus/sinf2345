@@ -37,29 +37,31 @@ init(Epoch_Chang, Peers, Link, Beb) ->
 ldc_loop(State) ->
     Self= self(),
     receive
-        %% %% add a Leader driven consensus to the list of ups
-        %% {subscribe, Pid} ->
-        %%     #epoch_state{my_up = Up} = State,
-        %%     %% check avoid double subscription
-        %%     case sets:is_element(Pid, Up) of
-        %%         true ->
-        %%             io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
-        %%             epoch_loop(State);
-        %%         false ->
-        %%             epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)})
-        %%     end;
-
+        %% Propose a new value for the consensus
         {propose, Val} ->
             ldc_loop(State#ldc_state(val = Val));
         
+        %% There is a new epoch, abort
         {startepoch, New_TS, New_L} ->
             #ldc_state(epoch_cons = EC) = State,
             EC ! {abort, Self, New_TS},
             ldc_loop(State#ldc_state(newts = New_TS, newl = New_L));
         
-        {aborted, Ao_State, Ao_TS} ->
+        %% The EpochConsensus has been aborted
+        {aborted, Abo_State, Abo_TS} when State#ldc_state.ets == Abo_TS ->
             #ldc_state(epoch_cons = EC, newts = New_TS, newl = New_L) = State,
-            rw_epoch_cons:start(Bebs, Links, New_TS, New_L),
-            ldc_loop(#ldc_state{proposed = false, ets = New_TS, newl = New_L});
+            %% initialize a new instance of epoch consensus with timestamp ets
+            Epoch_Cons = rw_epoch_cons:start(Bebs, Links, New_TS, New_L),
+            ldc_loop(State#ldc_state{proposed = false, ets = New_TS, newl = New_L, epoch_cons = Epoch_Cons});
 
+        %% Decide on a value
+        {decide, Val, Ets} when State#ldc_state.ets == ETS ->
+            #ldc_state(decided = D) = State,
+            case D of
+                false ->
+                    %% TOFIX what shoud I do with that value ?
+                    io:format("We have decided on value ~p ~n", [Val]),
+                    ldc_loop(State#ldc_state{decided = true});
+                true ->
+                    ldc_loop(State)
     end.
