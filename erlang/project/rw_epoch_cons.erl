@@ -4,7 +4,7 @@
 -module(rw_epoch_cons).
 -compile(export_all).
 
--import(spawn_utils, [spawn_multiple_on_top/2]).
+-import(spawn_utils, [spawn_multiple_on_top/3]).
 
 -record(rwe_state, {
         leader = none,
@@ -20,38 +20,39 @@
         my_ups = []
         }).
 
-% spawn a single process TODO spec: cf start() below
-%start(Beb, Link, Epoch_Ts, State) ->
 
-% @spec (Bebs, Links, Epoch_Ts, States) -> Rw_epoch_cons :: [pid()]
+% @spec (Bebs, Links, Epoch_Ts, E_States) -> Rw_epoch_cons :: [pid()]
 %   Bebs = [Beb :: pid()]
 %   Links = [Link :: pid()]
 %   Epoch_Ts = [integer()]
-%   States = [{Ts :: integer(), Val :: term()}]
+%   E_States = [{Ts :: integer(), Val :: term()}]
+%   N = integer()
 % @doc spawns a rw_consensus_epoch instance with the given Epoch_Ts.
-start(Bebs, Links, Epoch_Ts, States) when 
+start(Bebs, Links, Epoch_Ts, E_States, N) when 
         is_pid(hd(Bebs)), is_pid(hd(Links)), 
-        length(Bebs) == length(Links), length(Links) == length(States) ->
-    spawn_multiple_on_top(Bebs, Epoch_Ts).
+        length(Bebs) == length(Links), length(Links) == length(E_States) ->
+    spawn_multiple_on_top(Bebs, [fun init/6 || _ <- Bebs], 
+            [[Link, Epoch_Ts, E_State, N] || {Link, E_State} 
+                <- lists:zip(Links, E_States)]).
     
 
-% @spec (Peers, Beb, Link, Epoch_Ts, State) -> void
-%   Peers = [pid()]
+% @spec (_Peers, Beb, Link, Epoch_Ts, E_State) -> void
+%   _Peers = [pid()]
 %   Beb = pid()
 %   Link = pid()
 %   Epoch_Ts = integer()
 %   Self_Leader = boolean()
-init(Peers, Beb, Link, Epoch_Ts, State) ->
+%   N = integer()
+init(_Peers, Beb, Link, Epoch_Ts, E_State, N) ->
     Link ! {subscribe, self()},
     Beb ! {subscribe, self()},
     % conditions on state (must call check to test & trigger them)
     condition:start(),
-    N = length(Peers),
     Self = self(),
     condition:upon(
         % #states > N/2
-        fun (#rwe_state{states = States}) ->
-            dict:size(States) > N / 2
+        fun (#rwe_state{states = E_States}) ->
+            dict:size(E_States) > N / 2
         end,
         % action
         fun (_) ->
@@ -66,14 +67,17 @@ init(Peers, Beb, Link, Epoch_Ts, State) ->
             Self ! {accepted_over_N_div_2}
         end),
         
-    {Val_Ts, Val} = State,
+    {Val_Ts, Val} = E_State,
     loop(#rwe_state{
-        peers = Peers,
         beb = Beb,
         link = Link,
         ets = Epoch_Ts,
         val_ts = Val_Ts,
         val = Val}).
+
+reinit(Pid, Ets, E_State) ->
+    % TODO
+    true.
 
 loop(State) ->
     % Epoch Timestamp included in every message so that two groups of
