@@ -16,12 +16,6 @@
           my_up = sets:new(),
           lastts = 0}). % p2p links to up nodes
 
-%% start(Fail_Dets, Perfect_Links) when 
-%%       is_pid(hd(Fail_Dets)), is_pid(hd(Perfect_Links)),
-%%       length(Fail_Dets) == length(Perfect_Links) ->
-%%                     spawn_multiple_on_top(Fail_Dets, 
-%%                                           [fun init/3 || _ <- lists:seq(1,length(Fail_Dets))],
-%%                                           [[Link] || Link <- Perfect_Links] ).
 
 init(Peers, Down, Beb, Link) ->
     Link ! {subscribe, self()},
