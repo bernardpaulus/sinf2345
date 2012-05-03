@@ -17,7 +17,8 @@
         accepted = 0,
         val_ts = val_ts,
         val = val,
-        my_ups = []
+        my_ups = [],
+        n = n
         }).
 
 
@@ -73,11 +74,8 @@ init(_Peers, Beb, Link, Epoch_Ts, E_State, N) ->
         link = Link,
         ets = Epoch_Ts,
         val_ts = Val_Ts,
-        val = Val}).
-
-reinit(Pid, Ets, E_State) ->
-    % TODO
-    {Pid, Ets, E_State}.
+        val = Val,
+        n = N}).
 
 loop(State) ->
     % Epoch Timestamp included in every message so that two groups of
@@ -155,10 +153,10 @@ loop(State) ->
         % aborted on new epoch. Can be at any step of the algo
         {abort, Pid, Ets} ->
             #rwe_state{val_ts = Val_Ts, val = Val} = State,
-            Pid ! {aborted, {Val_Ts, Val}, Ets};
+            Pid ! {aborted, {Val_Ts, Val}, Ets},
+            reinit_wait(State);
 
-
-        % ho no, an undocumented message!
+        % old subscribe
         {subscribe, Pid} ->
             loop(State#rwe_state{
                 my_ups = [Pid | State#rwe_state.my_ups]});
@@ -169,6 +167,28 @@ loop(State) ->
             From ! {ack, self(), M},
             loop(State#rwe_state{
                 my_ups = [Pid | State#rwe_state.my_ups]})
+    end.
+
+
+% @spec (Down :: pid(), Ets :: integer(), Val :: term()) -> pid()
+% @doc reinitializes an aborted rw_epoch_cons process, and returns the pid() of
+% the reinitialized process.
+reinit(Down, Ets, E_State) ->
+    M = Down ! {reinit, self(), {Ets, E_State}},
+    receive {ack, Down, M} -> Down end.
+
+% @doc call init with new parameters and resubscibes my_ups
+reinit_wait(State) ->
+    #rwe_state{peers = Peers, beb = Beb, link = Link, n = N, my_ups = My_Ups}
+        = State,
+    Target = self(),
+    receive 
+        {reinit, Pid, {Ets, E_State}} = M ->
+            spawn(fun() -> % re-subscribe my ups
+                    [utils:subscribe(Up, Target) || Up <- My_Ups],
+                    Pid ! {ack, Target, M} % only ack after re-subscription
+                end),
+            init(Peers, Beb, Link, Ets, E_State, N)
     end.
 
 
