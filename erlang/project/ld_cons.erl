@@ -35,6 +35,8 @@ init(Epoch_Cons, Epoch_Chang, Peers) ->
                         newts = 0,
                         newl = none}).
 
+
+%% TODO upon l = self ^ val...
 ldc_loop(State) ->
     Self= self(),
     receive
