@@ -161,6 +161,13 @@ loop(State) ->
         % ho no, an undocumented message!
         {subscribe, Pid} ->
             loop(State#rwe_state{
+                my_ups = [Pid | State#rwe_state.my_ups]});
+
+
+        % added ack to subscriptions
+        {subscribe, From, Pid} = M ->
+            From ! {ack, self(), M},
+            loop(State#rwe_state{
                 my_ups = [Pid | State#rwe_state.my_ups]})
     end.
 

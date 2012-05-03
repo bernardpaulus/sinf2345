@@ -13,7 +13,8 @@
         recv/1,
         register_unique/2,
         seed_once/0,
-        subroutine/1, subroutine/2, subroutine/3
+        subroutine/1, subroutine/2, subroutine/3,
+        subscribe/1, subscribe/2
         ]).
 
 
@@ -123,3 +124,14 @@ subroutine(Fun) ->
     receive
         {Pid, Ret} -> Ret
     end.
+
+% @equiv subscribe(self(), Target)
+subscribe(Target) -> subscribe(self(), Target).
+
+
+% @spec (Pid :: pid(), Target :: pid()) -> ok
+% @doc subscribes Pid at Target.
+% can be stuck if Target doesn't ack
+subscribe(Pid, Target) ->
+    M = Target ! {subscribe, self(), Pid},
+    receive {ack, Target, M} -> ok end.
