@@ -4,7 +4,7 @@
 -module(rw_epoch_cons).
 -compile(export_all).
 
-
+-import(spawn_utils, [spawn_multiple_on_top/2]).
 
 -record(rwe_state, {
         leader = none,
@@ -20,6 +20,20 @@
         my_ups = []
         }).
 
+% spawn a single process TODO spec: cf start() below
+%start(Beb, Link, Epoch_Ts, State) ->
+
+% @spec (Bebs, Links, Epoch_Ts, States) -> Rw_epoch_cons :: [pid()]
+%   Bebs = [Beb :: pid()]
+%   Links = [Link :: pid()]
+%   Epoch_Ts = [integer()]
+%   States = [{Ts :: integer(), Val :: term()}]
+% @doc spawns a rw_consensus_epoch instance with the given Epoch_Ts.
+start(Bebs, Links, Epoch_Ts, States) when 
+        is_pid(hd(Bebs)), is_pid(hd(Links)), 
+        length(Bebs) == length(Links), length(Links) == length(States) ->
+    spawn_multiple_on_top(Bebs, Epoch_Ts).
+    
 
 % @spec (Peers, Beb, Link, Epoch_Ts, State) -> void
 %   Peers = [pid()]
@@ -30,8 +44,7 @@
 init(Peers, Beb, Link, Epoch_Ts, State) ->
     Link ! {subscribe, self()},
     Beb ! {subscribe, self()},
-    % insert condition checking on state (must call check whenever want to
-    % check)
+    % conditions on state (must call check to test & trigger them)
     condition:start(),
     N = length(Peers),
     Self = self(),
@@ -74,6 +87,8 @@ loop(State) ->
             % Leader = self(), fail if leader is not none or self()
             L = check_leader(self(), State),
             Tmp_Val = V,
+            % TODO make other broadcasts, waiting for > N/2 acks to give time to
+            % others to start
             Beb ! {broadcast, self(), {read, Ets}},
             loop(State#rwe_state{
                     leader = L,
@@ -128,9 +143,9 @@ loop(State) ->
             [Up ! {decide, V, Ets} || Up <- State#rwe_state.my_ups],
             loop(State);
 
-        {abort, Pid} ->
+        {abort, Pid, Ets} ->
             #rwe_state{val_ts = Val_Ts, val = Val} = State,
-            Pid ! {aborted, {Val_Ts, Val}};
+            Pid ! {aborted, {Val_Ts, Val, Ets}};
 
         {subscribe, Pid} ->
             loop(State#rwe_state{
