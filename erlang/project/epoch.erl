@@ -14,7 +14,7 @@
           trusted = none,
           p2p_link = none,
           my_up = sets:new(),
-          lastts = 0}). % p2p links to up nodes
+          lastts = 0}).
 
 
 init(Peers, Down, Beb, Link) ->
