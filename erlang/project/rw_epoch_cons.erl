@@ -46,9 +46,9 @@ start(Bebs, Links, Epoch_Ts, E_States, N) when
 init(_Peers, Beb, Link, Epoch_Ts, E_State, N) ->
     Link ! {subscribe, self()},
     Beb ! {subscribe, self()},
+    Self = self(),
     % conditions on state (must call check to test & trigger them)
     condition:start(),
-    Self = self(),
     condition:upon(
         % #states > N/2
         fun (#rwe_state{states = E_States}) ->
@@ -77,7 +77,7 @@ init(_Peers, Beb, Link, Epoch_Ts, E_State, N) ->
 
 reinit(Pid, Ets, E_State) ->
     % TODO
-    true.
+    {Pid, Ets, E_State}.
 
 loop(State) ->
     % Epoch Timestamp included in every message so that two groups of
@@ -85,25 +85,25 @@ loop(State) ->
     #rwe_state{ets = Ets, leader = Leader} = State,
     Self = self(),
     receive
+        % request from upper layer done only to the leader
         {propose, V} -> 
             #rwe_state{beb = Beb} = State,
-            % Assume I am the leader
             % Leader = self(), fail if leader is not none or self()
             L = check_leader(self(), State),
             Tmp_Val = V,
-            % TODO make other broadcasts, waiting for > N/2 acks to give time to
-            % others to start
             Beb ! {broadcast, self(), {read, Ets}},
             loop(State#rwe_state{
                     leader = L,
                     tmp_val = Tmp_Val});
 
+        % respond with our state to the {read, } broadcasted by leader
         {deliver, L, {read, Ets}} ->
             #rwe_state{link = Link, val_ts = Val_Ts, val = V} =  State,
             check_leader(L, State),
             Link ! {send, self(), L, {state, Val_Ts, V}},
             loop(State#rwe_state{leader = L});
 
+        % leader only: receive the different states
         {deliver, From, Leader, {state, Val_Ts, V}} ->
             State1 = State#rwe_state{
                     states = dict:append(From, {Val_Ts, V},
@@ -112,6 +112,7 @@ loop(State) ->
             condition:check(State1),
             loop(State);
 
+        % leader: when received enough states, write the highest to all nodes
         {n_states_over_N_div_2} when Self == Leader -> 
             % triggered by check() when #states > N/2
             #rwe_state{beb = Beb, states = States} = State,
@@ -124,6 +125,7 @@ loop(State) ->
                     states = dict:new(),
                     tmp_val = Tmp_Val});
 
+        % all nodes update their states
         {deliver, Leader, {write, V, Ets}} ->
             #rwe_state{link = Link} = State,
             Link ! {send, self(), Leader, accept},
@@ -131,6 +133,7 @@ loop(State) ->
                     val_ts = Ets,
                     val = V});
 
+        % leader: counts the number of nodes with the new state
         {deliver, _From, Leader, accept} ->
             State1 = State#rwe_state{
                 accepted = State#rwe_state.accepted + 1},
@@ -138,19 +141,24 @@ loop(State) ->
             condition:check(State1),
             loop(State1);
 
+        % leader: when majority of nodes got the new state
         {accepted_over_N_div_2} when Self == Leader ->
             #rwe_state{beb = Beb, tmp_val = Tmp_Val} = State,
             Beb ! {broadcast, Leader, {decided, Tmp_Val, Ets}},
             loop(State#rwe_state{accepted = 0});
 
+        % each node indicate their ups the leader decided upon a value
         {deliver, Leader, {decided, V, Ets}} ->
             [Up ! {decide, V, Ets} || Up <- State#rwe_state.my_ups],
             loop(State);
 
+        % aborted on new epoch. Can be at any step of the algo
         {abort, Pid, Ets} ->
             #rwe_state{val_ts = Val_Ts, val = Val} = State,
             Pid ! {aborted, {Val_Ts, Val}, Ets};
 
+
+        % ho no, an undocumented message!
         {subscribe, Pid} ->
             loop(State#rwe_state{
                 my_ups = [Pid | State#rwe_state.my_ups]})
@@ -164,6 +172,13 @@ loop(State) ->
 check_leader(Leader, #rwe_state{leader = none}) -> Leader;
 check_leader(Leader, #rwe_state{leader = Leader}) -> Leader.
 
+% @spec (States ) -> Max_Val :: term()
+%   States = dict()
+% @doc returns the maximum value of the values of States.
+%
+% not exactly the same as highest() of Cachin/Guerraoui: theirs assumed the
+% values where {Ts, Val}, and compared only on Ts, assuming two vals with the
+% same Ts were equal. Here, lexicographic order is used.
 highest(States) ->
     {_Keys, Vals} = lists:unzip(dict:to_list(States)),
     lists:max(lists:flatten(Vals)).
