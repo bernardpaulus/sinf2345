@@ -27,14 +27,26 @@
 %   Links = [Link :: pid()]
 %   Epoch_Ts = [integer()]
 %   E_States = [{Ts :: integer(), Val :: term()}]
-%   N = integer()
-% @doc spawns a rw_consensus_epoch instance with the given Epoch_Ts.
-start(Bebs, Links, Epoch_Ts, E_States, N) when 
+% @doc spawns a rw_epoch_cons instance with the given Epoch_Ts.
+start(Bebs, Links, Epoch_Ts, E_States) when 
         is_pid(hd(Bebs)), is_pid(hd(Links)), 
         length(Bebs) == length(Links), length(Links) == length(E_States) ->
+    N = length(Bebs),
     spawn_multiple_on_top(Bebs, [fun init/6 || _ <- Bebs], 
             [[Link, Epoch_Ts, E_State, N] || {Link, E_State} 
                 <- lists:zip(Links, E_States)]).
+
+% @spec (Nodes, Epoch_Ts, E_States) -> [RW_Epoch_Cons :: pid()]
+%   Nodes = [node()]
+%   Epoch_Ts = integer()
+%   E_States = [{Ts :: integer(), Val :: term()}]
+% @doc spawns a test instance of rw_epoch_cons with all the required
+% abstractions.
+start(Nodes, Epoch_Ts, E_States) when
+        length(Nodes) == length(E_States) ->
+    Links = link:perfect_link(Nodes),
+    Bebs = beb:start(Links),
+    start(Bebs, Links, Epoch_Ts, E_States).
     
 
 % @spec (_Peers, Beb, Link, Epoch_Ts, E_State) -> void
@@ -108,7 +120,7 @@ loop(State) ->
                             State#rwe_state.states)},
             % update then check
             condition:check(State1),
-            loop(State);
+            loop(State1);
 
         % leader: when received enough states, write the highest to all nodes
         {n_states_over_N_div_2} when Self == Leader -> 
@@ -160,7 +172,6 @@ loop(State) ->
         {subscribe, Pid} ->
             loop(State#rwe_state{
                 my_ups = [Pid | State#rwe_state.my_ups]});
-
 
         % added ack to subscriptions
         {subscribe, From, Pid} = M ->
