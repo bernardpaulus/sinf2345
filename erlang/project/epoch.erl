@@ -77,8 +77,8 @@ epoch_loop(State) ->
     end.
 
 
-rank(Peers) -> rank(self(), Peers, 1);
-rank(Node, [], _) -> {error, no_match found};
+rank(Peers) -> rank(self(), Peers, 1).
+rank(_, [], _) -> {error, node_not_found};
 rank(Node, [H | T], N) ->
     case H == Node of
         true -> N;
