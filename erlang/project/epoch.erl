@@ -5,7 +5,7 @@
 
 -module(epoch).
 -compile(export_all).
--import(spawn_utils, [spawn_multiple_on_top/3]).
+%% -import(spawn_utils, [spawn_multiple_on_top/3]).
 
 -record(epoch_state, {
           peers = [],
@@ -14,7 +14,7 @@
           trusted = none,
           p2p_link = none,
           my_up = sets:new(),
-          lastts = 0}). % p2p links to up nodes
+          lastts = 0}).
 
 
 init(Peers, Down, Beb, Link) ->

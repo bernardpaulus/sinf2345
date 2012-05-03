@@ -293,7 +293,7 @@ loop(State) ->
 
         {abort, Pid, Ets} ->
             #rwe_state{val_ts = Val_Ts, val = Val} = State,
-            Pid ! {aborted, {Val_Ts, Val, Ets}};
+            Pid ! {aborted, {Val_Ts, Val}, Ets};
 
         {subscribe, Pid} ->
             loop(State#rwe_state{
