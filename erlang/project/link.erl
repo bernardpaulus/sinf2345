@@ -63,11 +63,11 @@ damn_simple_link_loop(State) ->
                     Other <- Others, Other /= self()],
             damn_simple_link_loop(State#dsl_state{
                     my_up = sets:add_element(Up, My_Up),
-                    all_up = dict:append(Up, self(), All_Up)}); 
+                    all_up = dict:store(Up, self(), All_Up)}); 
 
         {send, _, To, _}  = M ->
             #dsl_state{all_up = All_Up} = State,
-            [Other] = dict:fetch(To, All_Up), % crash process if not found in dict
+            Other = dict:fetch(To, All_Up), % crash process if not found in dict
             Other ! {deliver, self(), Other, M},
             damn_simple_link_loop(State);
 
@@ -82,7 +82,7 @@ damn_simple_link_loop(State) ->
         {deliver, Other, Self, {subscribe, Up}} -> 
             All_Up = State#dsl_state.all_up,
             damn_simple_link_loop(State#dsl_state{
-                    all_up = dict:append(Up, Other, All_Up)})
+                    all_up = dict:store(Up, Other, All_Up)})
     end.
 
 % @spec (L) -> [pid()]
@@ -154,12 +154,12 @@ perfect_link_loop(State0) ->
                     Other <- Others, Other /= self()],
             perfect_link_loop(State#pl_state{
                     my_up = sets:add_element(Up, My_Up),
-                    all_up = dict:append(Up, self(), All_Up)}); 
+                    all_up = dict:store(Up, self(), All_Up)}); 
 
         {send, _, To, _}  = M ->
             #pl_state{down = Down, all_up = All_Up, ttl =
                 Max_TTL, buffer = Buffer} = State,
-            [Other] = dict:fetch(To, All_Up), % crash process if not found in dict
+            Other = dict:fetch(To, All_Up), % crash process if not found in dict
             Msg = {send, self(), Other, M},
             P = random:uniform(),
             if 
@@ -183,7 +183,7 @@ perfect_link_loop(State0) ->
         {deliver, Other, Self, {subscribe, Up}} -> 
             All_Up = State#pl_state.all_up,
             perfect_link_loop(State#pl_state{
-                    all_up = dict:append(Up, Other, All_Up)})
+                    all_up = dict:store(Up, Other, All_Up)})
 
     after State#pl_state.delta ->
         perfect_link_loop(State)
