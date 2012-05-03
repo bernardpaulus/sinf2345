@@ -77,11 +77,10 @@ epoch_loop(State) ->
     end.
 
 
-rank(Peers) -> rank(self(), Peers);
-rank(Node, []) -> {error, no_match found};
-rank(Node, [H | T]) ->
-    % TODO return index !
+rank(Peers) -> rank(self(), Peers, 1);
+rank(Node, [], _) -> {error, no_match found};
+rank(Node, [H | T], N) ->
     case H == Node of
-        true -> H;
-        false -> rank(Node, T)
+        true -> N;
+        false -> rank(Node, T, N+1)
     end.
