@@ -116,7 +116,7 @@ loop(State) ->
         % leader only: receive the different states
         {deliver, From, Leader, {state, Val_Ts, V}} ->
             State1 = State#rwe_state{
-                    states = dict:append(From, {Val_Ts, V},
+                    states = dict:store(From, {Val_Ts, V},
                             State#rwe_state.states)},
             % update then check
             condition:check(State1),
