@@ -75,6 +75,10 @@ init(_Peers, Beb, Link, Epoch_Ts, E_State, N) ->
         val_ts = Val_Ts,
         val = Val}).
 
+reinit(Pid, Ets, E_State) ->
+    % TODO
+    true.
+
 loop(State) ->
     % Epoch Timestamp included in every message so that two groups of
     % read/write epoch consensus processes don't interfere with each other
