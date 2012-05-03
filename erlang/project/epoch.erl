@@ -5,7 +5,7 @@
 
 -module(epoch).
 -compile(export_all).
--import(spawn_utils, [spawn_multiple_on_top/3]).
+%% -import(spawn_utils, [spawn_multiple_on_top/3]).
 
 -record(epoch_state, {
           peers = [],
