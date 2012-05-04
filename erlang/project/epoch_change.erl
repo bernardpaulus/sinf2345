@@ -20,7 +20,7 @@ start(Downs, Bebs, Links) when
         is_pid(hd(Downs)), is_pid(hd(Bebs)), is_pid(hd(Links)),
         length(Downs) == length(Bebs), length(Bebs) == length(Links) ->
     spawn_multiple_on_top(Downs, [fun init/4 || _ <- Downs],
-        [[Beb, Link] || {Beb, Link} <- lists:zip(Links, Bebs)]).
+        [[Beb, Link] || {Beb, Link} <- lists:zip(Bebs, Links)]).
     
 start(Nodes) ->
     Links = link:perfect_link(Nodes),
