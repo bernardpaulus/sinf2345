@@ -22,7 +22,7 @@
 % better.<br/>
 % The [Node :: node()] are alive erlang nodes. <br/>
 % This perfect link performs message reordering. <br/>
-% returns the list of pids of the perfect link processes spawned.
+% returns the list of pids of the beb processes spawned.
 start(Downs) when is_pid(hd(Downs)) ->
     spawn_multiple_on_top(Downs, [fun init/2 || 
             _ <- lists:seq(1,length(Downs))]);

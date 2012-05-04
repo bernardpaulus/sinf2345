@@ -21,10 +21,10 @@
 %%   Bebs = [Beb :: pid()]
 %%   Links = [Link :: pid()]
 %% @doc spawns a epoch_change instance.
-start(Downs, Bebs, Links) when
-        is_pid(hd(Downs)), is_pid(hd(Bebs)), is_pid(hd(Links)),
-        length(Downs) == length(Bebs), length(Bebs) == length(Links) ->
-    spawn_multiple_on_top(Downs, [fun init/4 || _ <- Downs],
+start(Leader_Dets, Bebs, Links) when
+        is_pid(hd(Leader_Dets)), is_pid(hd(Bebs)), is_pid(hd(Links)),
+        length(Leader_Dets) == length(Bebs), length(Bebs) == length(Links) ->
+    spawn_multiple_on_top(Leader_Dets, [fun init/4 || _ <- Leader_Dets],
         [[Beb, Link] || {Beb, Link} <- lists:zip(Bebs, Links)]).
     
 start(Nodes) ->
@@ -34,11 +34,11 @@ start(Nodes) ->
     Mon_ELD = monarch_eld:start(Fail_Dets, Links),
     start(Mon_ELD, Bebs, Links).
 
-init(Peers, Down, Beb, Link) ->
+init(Peers, Leader_Det, Beb, Link) ->
     Link ! {subscribe, self()},
     Beb ! {subscribe, self()},
-    Down ! {subscribe, self()},
-    epoch_loop(#epoch_state{peers = Peers, down = Down, p2p_link = Link, beb = Beb, lastts = rank(Peers)}).
+    Leader_Det ! {subscribe, self()},
+    epoch_loop(#epoch_state{peers = Peers, down = Leader_Det, p2p_link = Link, beb = Beb, lastts = rank(Peers)}).
 
 epoch_loop(State) ->
     Self= self(),

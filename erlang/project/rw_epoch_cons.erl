@@ -128,7 +128,7 @@ loop(State) ->
             #rwe_state{beb = Beb, states = States} = State,
             case highest(States) of
                 {_ , bottom} -> Tmp_Val = State#rwe_state.tmp_val;
-                {_, Tmp_Val} -> Tmp_Val
+                {_, Tmp_Val} -> Tmp_Val % set the val to the highest Tmp_Val
             end,
             Beb ! {broadcast, self(), {write, Tmp_Val, Ets}},
             loop(State#rwe_state{
