@@ -5,7 +5,7 @@
 
 -module(epoch_change).
 -compile(export_all).
-%% -import(spawn_utils, [spawn_multiple_on_top/3]).
+-import(spawn_utils, [spawn_multiple_on_top/3]).
 
 -record(epoch_state, {
           peers = [],
@@ -16,6 +16,18 @@
           my_up = sets:new(),
           lastts = 0}).
 
+start(Downs, Bebs, Links) when
+        is_pid(hd(Downs)), is_pid(hd(Bebs)), is_pid(hd(Links)),
+        length(Downs) == length(Bebs), length(Bebs) == length(Links) ->
+    spawn_multiple_on_top(Downs, [fun init/4 || _ <- Downs],
+        [[Beb, Link] || {Beb, Link} <- lists:zip(Links, Bebs)]).
+    
+start(Nodes) ->
+    Links = link:perfect_link(Nodes),
+    Bebs = beb:start(Links),
+    Fail_Dets = inc_timeout_fd:start(Links),
+    Mon_ELD = monarch_eld:start(Fail_Dets, Links),
+    start(Mon_ELD, Bebs, Links).
 
 init(Peers, Down, Beb, Link) ->
     Link ! {subscribe, self()},
@@ -30,13 +42,8 @@ epoch_loop(State) ->
         {subscribe, Pid} ->
             #epoch_state{my_up = Up} = State,
             %% check avoid double subscription
-            case sets:is_element(Pid, Up) of
-                true ->
-                    io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
-                    epoch_loop(State);
-                false ->
-                    epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)})
-            end;
+            % no! we don't give a damn: the net effect is the same
+            epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)});
 
         %% receive a leader election message from meld (Down)
         %% will only match when the Down node is the leader
