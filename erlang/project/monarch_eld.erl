@@ -68,10 +68,11 @@ meld_loop(State) ->
                     % the resurection had no effect on the leader election
                     ok;
                 false ->
+                    io:format("Leader ~p is resurrected. Halleuja !~n", [Resurect_Leader]),
                     % we have a new leader !
                     [ Up ! {leader, Self, Resurect_Leader} 
-                        || Up <- sets:to_list(My_Up) ],
-                    ok
+                        || Up <- sets:to_list(My_Up) ]
+                    
             end,
             meld_loop(State#eld_state{
                         suspected = sets:subtract(Suspected, Subscribers),
