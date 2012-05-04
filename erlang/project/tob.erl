@@ -94,7 +94,7 @@ loop(State) ->
             % TODO reinit consensus
             loop(State#tob_state{
                 delivered = sets:union(Delivered, Decided),
-                unordered = sets:substract(Unordered, Decided),
+                unordered = sets:subtract(Unordered, Decided),
                 round = Round + 1,
                 wait = false});
 
