@@ -62,6 +62,9 @@ init(Peers, Epoch_Cons, Epoch_Chang) ->
                         newl = none}).
 
 
+%% TODO add restart/reinit
+%%      debug total order broadcast
+%%      write module above tob
 ldc_loop(State) ->
     Self= self(),
     receive
