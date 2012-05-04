@@ -67,7 +67,7 @@ ldc_loop(State) ->
     receive
         %% Propose a new value for the consensus
         {propose, Val} ->
-            condition:checl(State#ldc_state{val = Val}),
+            condition:check(State#ldc_state{val = Val}),
             ldc_loop(State#ldc_state{val = Val});
         
         %% There is a new epoch, abort
