@@ -35,7 +35,7 @@ meld_loop(State) ->
             % check avoid double subscription
             case sets:is_element(Pid, Up) of
                 true ->
-                    io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
+                    % io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
                     meld_loop(State);
                 false ->
                     meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)})
@@ -46,7 +46,7 @@ meld_loop(State) ->
             #eld_state{leader = Leader, peers=Peers, suspected=Suspected, my_up = My_Up} = State,
             case sets:is_element(Leader, Subscribers) of
                 true ->
-                    io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
+                    % io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
                     New_Leader = max_rank(Peers, sets:subtract(sets:from_list(Peers), Suspected)),
                     [ Up ! {trust, Self, New_Leader} 
                         || Up <- sets:to_list(My_Up) ],
@@ -68,7 +68,7 @@ meld_loop(State) ->
                     % the resurection had no effect on the leader election
                     ok;
                 false ->
-                    io:format("Leader ~p is resurrected. Halleuja !~n", [Resurect_Leader]),
+                    % io:format("Leader ~p is resurrected. Halleuja !~n", [Resurect_Leader]),
                     % we have a new leader !
                     [ Up ! {leader, Self, Resurect_Leader} 
                         || Up <- sets:to_list(My_Up) ]
