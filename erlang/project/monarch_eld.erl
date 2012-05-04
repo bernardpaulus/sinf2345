@@ -48,7 +48,8 @@ meld_loop(State) ->
                 true ->
                     io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
                     New_Leader = max_rank(Peers, sets:subtract(sets:from_list(Peers), Suspected)),
-                    [ Up ! {trust, Self, New_Leader} || Up <- My_Up ],
+                    [ Up ! {trust, Self, New_Leader} 
+                        || Up <- sets:to_list(My_Up) ],
                     meld_loop(State#eld_state{
                                 suspected = sets:union(Subscribers, Suspected),
                                 leader = New_Leader});
@@ -68,7 +69,8 @@ meld_loop(State) ->
                     ok;
                 false ->
                     % we have a new leader !
-                    [ Up ! {leader, Self, Resurect_Leader} || Up <- My_Up ],
+                    [ Up ! {leader, Self, Resurect_Leader} 
+                        || Up <- sets:to_list(My_Up) ],
                     ok
             end,
             meld_loop(State#eld_state{
