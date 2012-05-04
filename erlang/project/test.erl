@@ -9,13 +9,13 @@ ldc() ->
     Fail_Dets = inc_timeout_fd:start(Links),
     receive after 100 -> pass end,
     %% Down, leader detectors
-    Downs = monarch_eld:start(Fail_Dets, Links),
+    LDs = monarch_eld:start(Fail_Dets, Links),
     receive after 100 -> pass end,
     %% Best effort broadcasts
     Bebs = beb:start(Links),
     receive after 100 -> pass end,
     %% The epoch change
-    Epoch_Changes = epoch_change:start(Downs, Bebs, Links),
+    Epoch_Changes = epoch_change:start(LDs, Bebs, Links),
     receive after 100 -> pass end,
     %% The initial states of the epoch consensus
     E_States = [{0, bottom} || _ <- Bebs],
