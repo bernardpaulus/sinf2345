@@ -34,7 +34,7 @@ ldc() ->
     A ! {propose, myval}.
 
 tob() ->
-    io:format("Links~n", []),
+
     Links = link:perfect_link([node(), node(), node()]),
     receive after 100 -> pass end,
     Fail_Dets = inc_timeout_fd:start(Links),
@@ -43,20 +43,17 @@ tob() ->
     receive after 100 -> pass end,
     Bebs = beb:start(Links),
     receive after 100 -> pass end,
-    io:format("Epoch_Changes~n", []),
     Epoch_Changes = epoch_change:start(LDs, Bebs, Links),
     receive after 100 -> pass end,
     E_States = [{0, bottom} || _ <- Bebs],
     Epoch_Conss = rw_epoch_cons:start(Bebs, Links, 0, E_States),
     receive after 100 -> pass end,
-    io:format("LDC~n", []),
     %% The ldc object
     LDCs = ld_cons:start(Epoch_Conss, Epoch_Changes),
 
     %% Eager reliable broadcast
     ERBs = erb:start(Bebs),
     receive after 100 -> pass end,
-    io:format("Tob~n", []),
     %% Total order broadcast
     _TOBs = [A, _B, _C] = tob:start(ERBs, LDCs),
 
