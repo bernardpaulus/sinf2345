@@ -23,7 +23,8 @@
 start(RBs, Consensuss) 
         when is_pid(hd(RBs)), is_pid(hd(Consensuss)),
         length(RBs) == length(Consensuss) ->
-    spawn_multiple_on_top(RBs, [fun init/3 || _ <- RBs], Consensuss).
+    spawn_multiple_on_top(RBs, [fun init/3 || _ <- RBs], 
+        [[C] || C <- Consensuss).
 
 start(Nodes) ->
     Links = link:perfect_link(Nodes),
