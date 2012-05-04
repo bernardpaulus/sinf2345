@@ -59,28 +59,29 @@ epoch_loop(State) ->
             epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = Leader});
         
         %% receive newpoch broadcast message
-        {deliver, From, M} ->
+        {deliver, From, {newepoch, New_Ts}} ->
             #epoch_state{lastts = Lastts, trusted = Trust, down = Down, p2p_link = Link, beb = Beb} = State,
-            {Action, Body} = M,
-            if Action == newepoch ->
-                    if Trust == From, Body > Lastts ->
-                            Down ! {startepoch, Body, Trust},
-                            epoch_loop(State#epoch_state{lastts = Body});
-                       
-                       true ->
-                            Link ! {send, Self, Trust, {nack, Self}},
-                            epoch_loop(State)
-                    end;
-               Action == nack ->
-                    if Trust == Self ->
-                            N = length(State#epoch_state.peers),
-                            Beb ! {broadcast, {newepoch, Lastts + N}},
-                            epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = From});
-                       true ->
-                            pass
-                    end
-            end
-    end.
+            if Trust == From, New_Ts > Lastts ->
+                    Down ! {startepoch, Body, Trust},
+                    epoch_loop(State#epoch_state{lastts = New_Ts});
+               
+               true ->
+                    Link ! {send, Self, Trust, {nack, Self}},
+                    epoch_loop(State)
+            end;
+        
+        %% receive non acknowledgment
+        {deliver, From, {nack, _From}} ->
+            #epoch_state{lastts = Lastts, trusted = Trust, down = Down, p2p_link = Link, beb = Beb} = State,
+            
+            if Trust == Self ->
+                    N = length(State#epoch_state.peers),
+                    Beb ! {broadcast, {newepoch, Lastts + N}},
+                    epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = From});
+               true ->
+                    pass
+            end;
+        end.
 
 
 rank(Peers) -> rank(self(), Peers, 1).
