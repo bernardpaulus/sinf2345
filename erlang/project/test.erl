@@ -1,21 +1,22 @@
 -module(test).
 -compile(export_all).
 
-test_ldc() ->
+ldc() ->
     %% The links
-    Links = [L1, L2, L3] = link:perfect_link([node(), node(), node()]),
-
+    Links = link:perfect_link([node(), node(), node()]),
     %% The failure detectors
     Fail_Dets = inc_timeout_fd:start(Links),
-
     %% Down, leader detectors
-    Down = monarch_eld:start(Fail_Dets, Links),
-
+    Downs = monarch_eld:start(Fail_Dets, Links),
     %% Best effort broadcasts
     Bebs = beb:start(Links),
-    
+
     %% The epoch change
-    Ep_Change = epoch_change:start(Downs, Beb, Links),
-    
+    Epoch_Changes = epoch_change:start(Downs, Bebs, Links),
+    %% The initial states of the epoch consensus
+    E_States = [{0, bottom} || _ <- Bebs],
     %% The epoch consensus
-    Ep_Cons = rw_epoch_cons:start(X).
+    Epoch_Conss = rw_epoch_cons:start(Bebs, Links, 0, E_States),
+    
+    %% The ldc object
+    ld_cons:start(Epoch_Conss, Epoch_Changes).

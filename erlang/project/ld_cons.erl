@@ -4,6 +4,7 @@
 % @author martin trigaux
 
 -module(ld_cons).
+-import(spawn_utils, [spawn_multiple_on_top/3]).
 -compile(export_all).
 
 -record(ldc_state, {
@@ -21,7 +22,7 @@
 
 start(Epoch_Conss, Epoch_Changes) when
       is_pid(hd(Epoch_Conss)),
-      is_pid(hd(Epoch_Chang)),
+      is_pid(hd(Epoch_Changes)),
       length(Epoch_Conss) == length(Epoch_Changes) ->
     spawn_multiple_on_top(Epoch_Conss, [fun init/3 || _ <- Epoch_Conss],
                           [[Epoch_Chang] || Epoch_Chang <- Epoch_Changes]).
