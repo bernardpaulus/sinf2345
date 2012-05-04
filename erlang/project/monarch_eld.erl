@@ -24,6 +24,21 @@ start(Fail_Dets, Perfect_Links) when
 init(Peers, FD, Link) ->
     Link ! {subscribe, self()},
     FD ! {subscribe, self()},
+    % condition
+    Self = self(),
+    Peers_set = sets:from_list(Peers),
+    condition:start(),
+    condition:upon(
+        fun (#eld_state{leader = Leader, suspected = Suspected}) ->
+            Trusted = sets:substract(Peers_set, Suspected),
+            case max_rank(Peers, Trusted) of
+                Leader -> ok;
+                New_Leader -> Self ! {leader_not_trusted, New_Leader}
+            end,
+            false % trick the condition module into believing condition is
+                  % never satisfied
+        end,
+        fun (_) -> dummy_action end),
     meld_loop(#eld_state{peers = Peers, p2p_link = Link}).
 
 meld_loop(State) ->
@@ -32,52 +47,36 @@ meld_loop(State) ->
         % add a process to the eligeable list
         {subscribe, Pid} ->
             #eld_state{my_up = Up} = State,
-            % check avoid double subscription
-            case sets:is_element(Pid, Up) of
-                true ->
-                    % io:format("The PID ~p has already subscribed to me (~p) ~n", [Pid, Self]),
-                    meld_loop(State);
-                false ->
-                    meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)})
-            end;
+            % check avoid double subscription -> no! effect is the same
+            meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
 
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
-            #eld_state{leader = Leader, peers=Peers, suspected=Suspected, my_up = My_Up} = State,
-            case sets:is_element(Leader, Subscribers) of
-                true ->
-                    % io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
-                    New_Leader = max_rank(Peers, sets:subtract(sets:from_list(Peers), Suspected)),
-                    [ Up ! {trust, Self, New_Leader} 
-                        || Up <- sets:to_list(My_Up) ],
-                    meld_loop(State#eld_state{
-                                suspected = sets:union(Subscribers, Suspected),
-                                leader = New_Leader});
-                false ->
-                    % don't care
-                    meld_loop(State#eld_state{
-                                suspected = sets:union(Subscribers, Suspected)})
-            end;
+            % case sets:is_element(Leader, Subscribers) of % Leader == bottom !
+            State1 = State#eld_state{
+                        suspected = sets:union(Subscribers, 
+                             State#eld_state.suspected)},
+            condition:check(State1),
+            meld_loop(State1);
 
         % oups it seems you are not dead after all, welcome back
         {restore, _From, Subscribers} ->
-            #eld_state{suspected = Suspected, peers = Peers, leader = Leader, my_up = My_Up} = State,
-            Resurect_Leader = max_rank(Peers, sets:subtract(sets:from_list(Peers), sets:subtract(Suspected, Subscribers))),
-            case Leader == Resurect_Leader of
-                true ->
-                    % the resurection had no effect on the leader election
-                    ok;
-                false ->
-                    % io:format("Leader ~p is resurrected. Halleuja !~n", [Resurect_Leader]),
-                    % we have a new leader !
-                    [ Up ! {leader, Self, Resurect_Leader} 
-                        || Up <- sets:to_list(My_Up) ]
-                    
-            end,
-            meld_loop(State#eld_state{
-                        suspected = sets:subtract(Suspected, Subscribers),
-                        leader = Resurect_Leader})
+            #eld_state{suspected = Suspected} = State,
+            State1 = State#eld_state{
+                        suspected = sets:subtract(Suspected, Subscribers)},
+            condition:check(State1),
+            meld_loop(State1);
 
+        % leader /= max_rank(Peers \ suspected)
+        {leader_not_trusted, New_Leader} -> 
+            #eld_state{my_up = My_Up} = State,
+            [ Up ! {trust, Self, New_Leader} 
+                || Up <- sets:to_list(My_Up) ],
+            State1 = State#eld_state{
+                        leader = New_Leader},
+            condition:check(State1),
+            meld_loop(State1)
+            
     end.
 
 % @spec ([pid()], Trusted :: sets:set()) -> 
