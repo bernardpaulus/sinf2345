@@ -47,7 +47,7 @@ meld_loop(State) ->
             case sets:is_element(Leader, Subscribers) of
                 true ->
                     io:format("The Leader ~p is dead. Long live the Leader !~n", [Leader]),
-                    New_Leader = max_rank(Peers, sets:subtract(Peers, Suspected)),
+                    New_Leader = max_rank(Peers, sets:subtract(sets:from_list(Peers), Suspected)),
                     [ Up ! {trust, Self, New_Leader} || Up <- My_Up ],
                     meld_loop(State#eld_state{
                                 suspected = sets:union(Subscribers, Suspected),
@@ -61,7 +61,7 @@ meld_loop(State) ->
         % oups it seems you are not dead after all, welcome back
         {restore, _From, Subscribers} ->
             #eld_state{suspected = Suspected, peers = Peers, leader = Leader, my_up = My_Up} = State,
-            Resurect_Leader = max_rank(Peers, sets:subtract(Peers, sets:subtract(Suspected, Subscribers))),
+            Resurect_Leader = max_rank(Peers, sets:subtract(sets:from_list(Peers), sets:subtract(Suspected, Subscribers))),
             case Leader == Resurect_Leader of
                 true ->
                     % the resurection had no effect on the leader election
