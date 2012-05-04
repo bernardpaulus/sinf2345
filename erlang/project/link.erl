@@ -156,6 +156,14 @@ perfect_link_loop(State0) ->
                     my_up = sets:add_element(Up, My_Up),
                     all_up = dict:store(Up, self(), All_Up)}); 
 
+        % don't delay subscribes
+        {send, _From, To, {subscribe, _}} = M ->
+            #pl_state{down = Down, all_up = All_Up} = State,
+            Other = dict:fetch(To, All_Up), % crash process if not found in dict
+            Down ! {send, self(), Other, M},
+            _From ! ok,
+            perfect_link_loop(State);
+            
         {send, _, To, _}  = M ->
             #pl_state{down = Down, all_up = All_Up, ttl =
                 Max_TTL, buffer = Buffer} = State,
