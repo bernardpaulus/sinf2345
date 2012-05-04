@@ -30,7 +30,7 @@ init(Peers, FD, Link) ->
     condition:start(),
     condition:upon(
         fun (#eld_state{leader = Leader, suspected = Suspected}) ->
-            Trusted = sets:substract(Peers_set, Suspected),
+            Trusted = sets:subtract(Peers_set, Suspected),
             case max_rank(Peers, Trusted) of
                 Leader -> ok;
                 New_Leader -> Self ! {leader_not_trusted, New_Leader}
