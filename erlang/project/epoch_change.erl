@@ -3,7 +3,7 @@
 % @author bernard paulus
 % @author martin trigaux
 
--module(epoch).
+-module(epoch_change).
 -compile(export_all).
 %% -import(spawn_utils, [spawn_multiple_on_top/3]).
 
