@@ -21,9 +21,25 @@
 %% Epoch_Chang : a Monarchical Eventual Leader Detector
 %% Peers : peers in the monarch_eld
 init(Epoch_Cons, Epoch_Chang, Peers) ->
+    Self = self(),
     L0 = monarch_eld:max_rank(Peers, sets:from_list(Peers)),
     Epoch_Cons ! {suscribe, self()},
     Epoch_Chang ! {suscribe, self()},
+
+    %% init propose condition
+    condition:start(),
+    condition:upon(
+      % condition
+      fun (#ldc_state{lead= L, val = Val, proposed = Prop}) ->
+              (L == Self) and %% pid of Self != pid of self() in the current process
+              (Val /= none) and
+              (Prop == false)
+      end,
+      % action
+      fun (_) ->            
+              Self ! {propose_val_condition}
+      end),
+
     %% create initial EpochConsensus
     ldc_loop(#ldc_state{val = none,
                         proposed = false,
@@ -36,12 +52,12 @@ init(Epoch_Cons, Epoch_Chang, Peers) ->
                         newl = none}).
 
 
-%% TODO upon l = self ^ val...
 ldc_loop(State) ->
     Self= self(),
     receive
         %% Propose a new value for the consensus
         {propose, Val} ->
+            condition:checl(State#ldc_state{val = Val}),
             ldc_loop(State#ldc_state{val = Val});
         
         %% There is a new epoch, abort
@@ -56,7 +72,9 @@ ldc_loop(State) ->
             %% initialize a new instance of epoch consensus with timestamp ets
             %% Epoch_Cons = rw_epoch_cons:start(Beb, Link, New_TS, Abo_State),
             Epoch_Cons = rw_epoch_cons:reinit(EC, New_TS, Abo_State),
-            ldc_loop(State#ldc_state{proposed = false, ets = New_TS, lead = New_L, epoch_cons = Epoch_Cons});
+            New_State  = State#ldc_state{proposed = false, ets = New_TS, lead = New_L, epoch_cons = Epoch_Cons},
+            condition:check(New_State),
+            ldc_loop(New_State);
 
         %% Decide on a value
         {decide, Val, Ets} when State#ldc_state.ets == Ets ->
@@ -68,5 +86,12 @@ ldc_loop(State) ->
                     ldc_loop(State#ldc_state{decided = true});
                 true ->
                     ldc_loop(State)
-            end
+            end;
+
+        %% condition validated
+        %% l = self ^ val != none ^ proposed = false
+        {propose_val_condition} ->
+            #ldc_state{epoch_cons = EC, val = Val} = State,
+            EC ! {propose, Val},
+            ldc_loop(State#ldc_state{proposed = true})            
     end.
