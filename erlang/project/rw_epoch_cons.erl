@@ -25,7 +25,7 @@
 % @spec (Bebs, Links, Epoch_Ts, E_States) -> Rw_epoch_cons :: [pid()]
 %   Bebs = [Beb :: pid()]
 %   Links = [Link :: pid()]
-%   Epoch_Ts = [integer()]
+%   Epoch_Ts = integer()
 %   E_States = [{Ts :: integer(), Val :: term()}]
 % @doc spawns a rw_epoch_cons instance with the given Epoch_Ts.
 start(Bebs, Links, Epoch_Ts, E_States) when 
