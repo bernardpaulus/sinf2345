@@ -18,9 +18,18 @@
           epoch_chang = none
           }).
 
+
+start(Epoch_Conss, Epoch_Changes) when
+      is_pid(hd(Epoch_Conss)),
+      is_pid(hd(Epoch_Chang)),
+      length(Epoch_Conss) == length(Epoch_Changes) ->
+    spawn_multiple_on_top(Epoch_Conss, [fun init/3 || _ <- Epoch_Conss],
+                          [[Epoch_Chang] || Epoch_Chang <- Epoch_Changes]).
+
+
 %% Epoch_Chang : a Monarchical Eventual Leader Detector
 %% Peers : peers in the monarch_eld
-init(Epoch_Cons, Epoch_Chang, Peers) ->
+init(Peers, Epoch_Cons, Epoch_Chang) ->
     Self = self(),
     L0 = monarch_eld:max_rank(Peers, sets:from_list(Peers)),
     Epoch_Cons ! {suscribe, self()},
