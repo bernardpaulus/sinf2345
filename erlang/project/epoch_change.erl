@@ -16,6 +16,11 @@
           my_up = sets:new(),
           lastts = 0}).
 
+%% @spec (Downs, Bebs, Links) -> epoch_change :: [pid()]
+%%   Downs = [monarch_eld :: pid()]
+%%   Bebs = [Beb :: pid()]
+%%   Links = [Link :: pid()]
+%% @doc spawns a epoch_change instance.
 start(Downs, Bebs, Links) when
         is_pid(hd(Downs)), is_pid(hd(Bebs)), is_pid(hd(Links)),
         length(Downs) == length(Bebs), length(Bebs) == length(Links) ->
