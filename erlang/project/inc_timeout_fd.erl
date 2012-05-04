@@ -99,11 +99,11 @@ suspect_restore(P, State_Acc) ->
     if 
         (not Is_Alive) and (not Is_Suspect) ->
             NewS = sets:add_element(P, Suspect),
-            [Up ! {suspect, Ups_P} || 
+            [Up ! {suspect, P, Ups_P} || 
                     Up <- sets:to_list(My_Ups)];
         Is_Alive and Is_Suspect ->
             NewS = sets:del_element(P, Suspect),
-            [Up ! {restore, Ups_P} || 
+            [Up ! {restore, P, Ups_P} || 
                     Up <- sets:to_list(My_Ups)];
         true ->
             NewS = Suspect
