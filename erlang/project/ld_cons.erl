@@ -16,7 +16,8 @@
           newts = 0,
           newl = none,
           epoch_cons = none,
-          epoch_chang = none
+          epoch_chang = none,
+          my_ups = []
           }).
 
 
@@ -68,6 +69,17 @@ init(Peers, Epoch_Cons, Epoch_Chang) ->
 ldc_loop(State) ->
     Self= self(),
     receive
+        %% old simple
+        {subscribe, Pid} ->
+            ldc_loop(State#ldc_state{
+                       my_ups = [Pid | State#ldc_state.my_ups]});
+
+        %% with From and ack
+        {subscribe, From, Pid} = M ->
+            From ! {ack, self(), M},
+            ldc_loop(State#ldc_state{
+                       my_ups = [Pid | State#ldc_state.my_ups]});
+        
         %% Propose a new value for the consensus
         {propose, Val} ->
             condition:check(State#ldc_state{val = Val}),
@@ -91,11 +103,11 @@ ldc_loop(State) ->
 
         %% Decide on a value
         {decide, Val, Ets} when State#ldc_state.ets == Ets ->
-            #ldc_state{decided = D} = State,
+            #ldc_state{decided = D, my_ups = My_Ups} = State,
             case D of
                 false ->
-                    %% TOFIX what shoud I do with that value ?
-                    io:format("We have decided on value ~p ~n", [Val]),
+                    %% io:format("We have decided on value ~p ~n", [Val]),
+                    [Up ! {decide, Val, Ets} || Up <- My_Ups],
                     ldc_loop(State#ldc_state{decided = true});
                 true ->
                     ldc_loop(State)

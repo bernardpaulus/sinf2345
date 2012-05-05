@@ -44,10 +44,10 @@ init(State) ->
     io:format("Je suis tob ~p~n", [self()]),
     Self = self(),
     #tob_state{rb = RB, consensus = Consensus} = State,
-    %% utils:subscribe(RB),
-    RB ! {subscribe, self()},
-    %% utils:subscribe(Consensus),
-    Consensus ! {subscribe, self()},
+    utils:subscribe(RB),
+    %% RB ! {subscribe, self()},
+    utils:subscribe(Consensus),
+    %% Consensus ! {subscribe, self()},
 
     condition:start(),
     condition:upon(
