@@ -87,10 +87,16 @@ bank() ->
     TOBs = [T1, _T2, _T3] = tob:start(RBs, Consensuss),
     dbg:p(T1,m),
     receive after 100 -> pass end,
-    
+
     [A, _B, _C] = bank:start(TOBs),
     dbg:p(A,m),
-
+    
     receive after 200 -> pass end,
-    A ! {create, self(), 1, 10}.
+    A ! {create, self(), 1, 10},
+
+    receive after 300 -> pass end,
+    A ! {create, self(), 2, 20},
+    
+    receive after 500 -> pass end,
+    A ! {transfer, self(), 1, 2, 5}.    
     
