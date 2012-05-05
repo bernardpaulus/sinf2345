@@ -92,10 +92,10 @@ meld_loop(State) ->
             end,
             [ Up ! {trust, Self, New_Leader, {ups, Leader_Ups}}
                     || Up <- sets:to_list(My_Up) ],
-                State1 = State#eld_state{
-                            leader = New_Leader},
-                condition:check(State1),
-                meld_loop(State1)
+            State1 = State#eld_state{
+                        leader = New_Leader},
+            condition:check(State1),
+            meld_loop(State1)
             
     end.
 

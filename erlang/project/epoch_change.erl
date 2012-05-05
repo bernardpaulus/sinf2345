@@ -66,17 +66,20 @@ epoch_loop(State) ->
                                     sets:from_list(LD_Ups)),
             case sets:to_list(EC_Leaders) of
                 [EC_Leader] ->
+                    % io:format("~p trusts ~p~n", [self(), EC_Leader]),
                     epoch_loop(State#epoch_state{trusted = EC_Leader});
-                _ -> 
+                _Leaders -> 
+                    % io:format("~p trusts none: received ~p~n", [self(), _Leaders]),
                     epoch_loop(State#epoch_state{trusted = none})
             end;
         
         %% receive newpoch broadcast message
         {deliver, From, {newepoch, New_Ts}} ->
-            #epoch_state{lastts = Lastts, trusted = Trust, down = Down,
+            #epoch_state{lastts = Lastts, trusted = Trust, my_up = My_Up,
                 p2p_link = Link} = State,
             if Trust == From, New_Ts > Lastts ->
-                    Down ! {startepoch, New_Ts, Trust},
+                    [Up ! {startepoch, New_Ts, Trust}
+                        || Up <- sets:to_list(My_Up)],
                     epoch_loop(State#epoch_state{lastts = New_Ts});
                
                true ->
@@ -85,7 +88,7 @@ epoch_loop(State) ->
             end;
         
         %% receive non acknowledgment
-        {deliver, From, {nack, _From}} ->
+        {deliver, From, Self, {nack, _From}} ->
             #epoch_state{lastts = Lastts, trusted = Trust, beb = Beb} = State,
             
             if Trust == Self ->
