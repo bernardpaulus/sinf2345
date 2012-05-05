@@ -30,11 +30,17 @@ start(Nodes) ->
     Links = link:perfect_link(Nodes),
     Bebs = beb:start(Links),
     RBs = erb:start(Bebs),
+    receive after 100 -> pass end,
     FDs = inc_timeout_fd:start(Links),
+    receive after 100 -> pass end,
     LDs = monarch_eld:start(FDs, Links),
+    receive after 100 -> pass end,
     RW_Epochs_Cons = rw_epoch_cons:start(Bebs, Links, 1, [{1, bottom} || _ <- Bebs]),
+    receive after 100 -> pass end,
     Epoch_Changes = epoch_change:start(LDs, Bebs, Links),
+    receive after 100 -> pass end,
     Consensuss = ld_cons:start(RW_Epochs_Cons, Epoch_Changes),
+    receive after 100 -> pass end,
     start(RBs, Consensuss).
 
 init(_Peers, RB, Consensus) when is_pid(RB) ->

@@ -66,12 +66,28 @@ tob() ->
 
 bank() ->
     Nodes = [node(), node(), node()],
-    TOBs = [T1, _T2, _T3] = tob:start(Nodes),
+    Links = link:perfect_link(Nodes),
+    Bebs = beb:start(Links),
+    RBs = [R1, _R2, _R3] = erb:start(Bebs),
+    receive after 100 -> pass end,
+    FDs = inc_timeout_fd:start(Links),
+    receive after 100 -> pass end,
+    LDs = monarch_eld:start(FDs, Links),
+    receive after 100 -> pass end,
+    RW_Epochs_Cons = rw_epoch_cons:start(Bebs, Links, 1, [{1, bottom} || _ <- Bebs]),
+    receive after 100 -> pass end,
+    Epoch_Changes = epoch_change:start(LDs, Bebs, Links),
+    receive after 100 -> pass end,
+    Consensuss = ld_cons:start(RW_Epochs_Cons, Epoch_Changes),
+    receive after 100 -> pass end,
+    
+    TOBs = [T1, _T2, _T3] = tob:start(RBs, Consensuss),
     [A, _B, _C] = bank:start(TOBs),
 
     dbg:tracer(),
     dbg:p(T1,m),
     dbg:p(A,m),
+    dbg:p(R1,m),
     
     A ! {create, self(), 1, 10}.
     
