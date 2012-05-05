@@ -67,7 +67,7 @@ inc_timeout_loop(State) ->
                     State1 = State
             end,
             State2 = lists:foldl(fun suspect_restore/2, State1, 
-                    [O || O <- Others, O /= self()]),
+                    [O || O <- Others, O /= self()]), % never suspect self()
             State3 = State2#it_state{alive = sets:new()}, % empty alive
             erlang:send_after(State3#it_state.delay, Self, {timeout}),
             inc_timeout_loop(State3);
