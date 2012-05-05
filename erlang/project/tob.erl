@@ -41,7 +41,6 @@ init(_Peers, RB, Consensus) when is_pid(RB) ->
     init(#tob_state{rb = RB, consensus = Consensus}).
 
 init(State) ->
-    io:format("Je suis tob ~p~n", [self()]),
     Self = self(),
     #tob_state{rb = RB, consensus = Consensus} = State,
     utils:subscribe(RB),
@@ -83,10 +82,11 @@ loop(State) ->
             end;
 
         {unordered_not_empty_and_wait_false} ->
-            #tob_state{consensus = Consensus, unordered = Unordered} = State,
+            #tob_state{unordered = Unordered, consensus = Cons} = State,
             % initialize a new instance c.round of consensus
             % ld_cons:reinit(Round), % TODO 
-            Consensus ! {propose, Unordered},
+            ld_cons:reinit(Cons),
+            Cons ! {propose, Unordered},
             loop(State#tob_state{wait = true});
 
         {decide, Decided, Round} -> % {decide, V, Round}
@@ -97,7 +97,7 @@ loop(State) ->
                 % trigger deliver to all subscribers
                 [ Up ! {deliver, From, Msg} || Up <- My_Ups]
             || {_Peer, _Seq, From, Msg} <- lists:sort(sets:to_list(Decided))],
-            % TODO reinit consensus
+            % TODO reinit consensus %% Why ?
             loop(State#tob_state{
                 delivered = sets:union(Delivered, Decided),
                 unordered = sets:subtract(Unordered, Decided),

@@ -17,7 +17,8 @@
           newl = none,
           epoch_cons = none,
           epoch_chang = none,
-          my_ups = []
+          my_ups = [],
+          peers = []
           }).
 
 
@@ -60,7 +61,8 @@ init(Peers, Epoch_Cons, Epoch_Chang) ->
                         ets = 0,
                         lead = L0,
                         newts = 0,
-                        newl = none}).
+                        newl = none,
+                        peers = Peers}).
 
 
 %% TODO add restart/reinit
@@ -118,5 +120,22 @@ ldc_loop(State) ->
         {propose_val_condition} ->
             #ldc_state{epoch_cons = EC, val = Val} = State,
             EC ! {propose, Val},
-            ldc_loop(State#ldc_state{proposed = true})            
+            ldc_loop(State#ldc_state{proposed = true});
+        
+
+        %% reinitalize the LDC
+        {reinit, Pid} = M ->
+            #ldc_state{peers = Peers, epoch_cons = Epoch_Cons, epoch_chang = Epoch_Chang, my_ups = My_Ups} = State,
+            Target = self(),
+            spawn(fun() -> % re-subscribe my ups
+                          [utils:subscribe(Up, Target) || Up <- My_Ups],
+                          Pid ! {ack, Target, M} % only ack after re-subscription
+                  end),
+            init(Peers, Epoch_Cons, Epoch_Chang)
     end.
+
+
+
+reinit(LDC) ->
+    M = LDC ! {reinit, self()},
+    receive {ack, LDC, M} -> LDC end.

@@ -86,7 +86,8 @@ bank() ->
     
     TOBs = [T1, _T2, _T3] = tob:start(RBs, Consensuss),
     dbg:p(T1,m),
-
+    receive after 100 -> pass end,
+    
     [A, _B, _C] = bank:start(TOBs),
     dbg:p(A,m),
 
