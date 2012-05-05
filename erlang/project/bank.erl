@@ -85,21 +85,53 @@ loop(State) ->
                             accounts = Accounts1})
             end;
             
-        
-        %% request a change in the amount of an account
+
+        %% From the user : request a transfer of one account to the other
+        {transfer, From_Pid, From_Acc, To_Acc, Amount} ->
+            #bank_state{accounts = Accounts} = State,
+            
+            self() ! {add, From_Pid, From_Acc, -Amount},
+            self() ! {add, From_Pid, To_Acc, Amount},
+
+            %% QUESTION : takes 1% if any of the two account is negative or just from ?
+            case dict:find(From_Acc, Accounts) of
+                {ok, Money} ->
+                    case Money - Amount < 0 of
+                        true ->
+                            %% Negative account, take 1% fee
+                            Fee = Amount - Amount*0.01,
+                            self() ! {add, self(), From_Acc, -Fee};
+                        false ->
+                            %% No change
+                            ok
+                    end;
+                error ->
+                    %% What should we do ?
+                    false
+            end,
+
+            case dict:find(To_Acc, Accounts) of
+                {ok, Money} ->
+                    case Money - Amount < 0 of
+                        true ->
+                            %% Negative account, take 1% fee
+                            Fee = Amount - Amount*0.01,
+                            self() ! {add, self(), To_Acc, -Fee};
+                        false ->
+                            %% No change
+                            ok
+                    end;
+                error ->
+                    %% What should we do ?
+                    false
+            end;
+
+        %% From self() : request a change in the amount of an account
         {add, From_Pid, _Account, _Amount} = M ->
             #bank_state{tob = TOB} = State,
             TOB ! {broadcast, self(), M},
             To_Ack = dict:append(From_Pid, M, State#bank_state.to_ack),
             loop(State#bank_state{to_ack = To_Ack});
-            %% no computation here: transaction not accepted yet in the TOB!
-            %#bank_state{accounts = Accounts} = State,
-            %Total = dict:fetch(Account, Accounts),
-            %New_Acc = dict:update(Account,
-            %                      fun(Amount) -> Total + Amount end,
-            %                      Accounts),
-            %
-            %loop(State#bank_state{accounts = New_Acc});
 
         %% from the TOB: receive a deliver add amount
         %%  => update the account for real
