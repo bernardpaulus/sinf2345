@@ -38,7 +38,15 @@ init(Peers, Leader_Det, Beb, Link) ->
     Link ! {subscribe, self()},
     Beb ! {subscribe, self()},
     Leader_Det ! {subscribe, self()},
-    epoch_loop(#epoch_state{peers = Peers, down = Leader_Det, p2p_link = Link, beb = Beb, lastts = rank(Peers)}).
+    receive after 1000 -> true end, % DEBUG
+    % get a leader
+    case monarch_eld:wait_for_trust(Peers, Leader_Det) of
+        Leader when is_pid(Leader) -> Leader % crash otherwise
+    end,
+    % and additionnally force to get a {trust ..}
+    Leader_Det ! {force_trust, self()},
+    epoch_loop(#epoch_state{peers = Peers, down = Leader_Det, p2p_link = Link,
+            beb = Beb, lastts = rank(Peers), trusted = Leader}).
 
 epoch_loop(State) ->
     Self= self(),
@@ -55,6 +63,7 @@ epoch_loop(State) ->
         {trust, Leader, Leader, {ups, _Epoch_Changes}} ->
             #epoch_state{beb = Beb, lastts = Lastts} = State,
             N = length(State#epoch_state.peers),
+            % io:format("~p trusts self()~n", [self()]),
             Beb ! {broadcast, Self, {newepoch, Lastts + N}},
             epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = Self});
 
@@ -78,6 +87,7 @@ epoch_loop(State) ->
             #epoch_state{lastts = Lastts, trusted = Trust, my_up = My_Up,
                 p2p_link = Link} = State,
             if Trust == From, New_Ts > Lastts ->
+                    io:format("~p start epoch ~p ~p~n", [Self, New_Ts, Trust]),
                     [Up ! {startepoch, New_Ts, Trust}
                         || Up <- sets:to_list(My_Up)],
                     epoch_loop(State#epoch_state{lastts = New_Ts});
@@ -88,13 +98,12 @@ epoch_loop(State) ->
             end;
         
         %% receive non acknowledgment
-        {deliver, From, Self, {nack, _From}} ->
+        {deliver, _From, Self, {nack, _From}} ->
             #epoch_state{lastts = Lastts, trusted = Trust, beb = Beb} = State,
-            
             if Trust == Self ->
                     N = length(State#epoch_state.peers),
-                    Beb ! {broadcast, {newepoch, Lastts + N}},
-                    epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = From});
+                    Beb ! {broadcast, Self, {newepoch, Lastts + N}},
+                    epoch_loop(State);
                true ->
                     epoch_loop(State)
             end

@@ -95,8 +95,42 @@ meld_loop(State) ->
             State1 = State#eld_state{
                         leader = New_Leader},
             condition:check(State1),
-            meld_loop(State1)
+            meld_loop(State1);
             
+        % forcibly reads the reader => initialize reader in epoch_change
+        {force_trust, From} ->
+            #eld_state{ups_of_others = O_Ups, leader = Leader} = State,
+            case dict:find(Leader, O_Ups) of
+                {ok, Leader_Ups} -> Leader_Ups;
+                error -> Leader_Ups = []
+            end,
+            From ! {trust, Self, Leader, {ups, Leader_Ups}},
+            meld_loop(State)
+
+    end.
+
+% @spec (Peers, LD) -> Leader :: pid() | Multiple :: {multiple, [pid()]}
+%   Peers = [pid()]
+%   LD = pid()
+% @doc asks for a leader in the list of Peers and returns it.
+% When multiple leaders are found Multiple is returned
+wait_for_trust(Peers, LD) ->
+    LD ! {force_trust, self()},
+    receive after 100 -> wait end,
+    receive 
+        {trust, _Self, _New_Leader, {ups, Leader_Ups}} ->
+            Leader_Ups
+    end,
+    Leaders = sets:to_list(sets:intersection(
+                    sets:from_list(Peers),
+                    sets:from_list(Leader_Ups))),
+    case Leaders of
+        [] ->
+            wait_for_trust(Peers, LD);
+        [Leader] ->
+            Leader;
+        Ls when is_list(Ls) ->
+            {multiple, Ls}
     end.
 
 % @spec ([pid()], Trusted :: sets:set()) -> 
