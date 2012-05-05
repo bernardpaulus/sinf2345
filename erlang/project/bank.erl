@@ -91,7 +91,7 @@ loop(State) ->
             #bank_state{tob = TOB} = State,
             TOB ! {broadcast, self(), M},
             To_Ack = dict:append(From_Pid, M, State#bank_state.to_ack),
-            loop(State#bank_state{to_ack = To_Ack})
+            loop(State#bank_state{to_ack = To_Ack});
             %% no computation here: transaction not accepted yet in the TOB!
             %#bank_state{accounts = Accounts} = State,
             %Total = dict:fetch(Account, Accounts),
@@ -101,7 +101,53 @@ loop(State) ->
             %
             %loop(State#bank_state{accounts = New_Acc});
 
-        % TODO {deliver ... {add ...}}.
+        %% from the TOB: receive a deliver add amount
+        %%  => update the account for real
+        {deliver, _From, {add, From_Pid, Account_ID, Amount} = M} ->
+            %% we are guaranteed that the execution of this part will be executed
+            %% the same way on every bank process since the TOB processes agreed
+            %% on an order to deliver their messages. (erlang sends are FIFO
+            %% between any pair of correct processes)
+            #bank_state{accounts = Accounts, to_ack = To_Ack} = State,
+            New_Accounts = case dict:is_key(Account_ID, Accounts) of
+                               true ->
+                                   Reply = {ok, account_updated, M},
+                                   %% update the money on the account
+                                   dict:update(Account_ID,
+                                               fun(Money) -> Money + Amount end,
+                                               Accounts);
+
+                               false ->
+                                   Reply = {error, unknown_account, M},
+                                   %% no account modified
+                                   Accounts
+                           end,
+                                                       
+            %% check whether to reply (if the user sent {create...} to self() )
+            Need_Reply = case dict:find(From_Pid, To_Ack) of
+                             {ok, Msg_List} ->
+                                 lists:any(fun (X) -> X == M end, Msg_List);
+                             error ->
+                                 Msg_List = [], % suppress compiler warning "unsafe Msg_List"
+                                 false
+                         end,
+
+            %% send reply/ack if needed
+            case Need_Reply of
+                true ->
+                    % remove the messages from the list of messages to ack for a
+                    % certain Pid
+                    From_Pid ! Reply,
+                    To_Ack1 = dict:store(From_Pid, lists:delete(M, Msg_List),
+                                    To_Ack),
+                    loop(State#bank_state{
+                            accounts = New_Accounts,
+                            to_ack = To_Ack1});
+                false ->
+                    loop(State#bank_state{
+                            accounts = New_Accounts})
+            end
+        
         
         %{broadcast_create, Amount} ->
         %    #bank_state{tob = TOB, pendings = P, accounts = Accounts} = State,
@@ -112,6 +158,7 @@ loop(State) ->
                 
     end.
 
+%% Returns the next account number
 next_account(Accounts) -> next_account(Accounts, 0).
 next_account([], Tot) -> Tot +1;
 next_account([_H | T], Tot) -> next_account(T, Tot+1).
