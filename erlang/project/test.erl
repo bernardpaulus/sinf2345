@@ -65,10 +65,13 @@ tob() ->
     A ! {broadcast, self(), coucou_le_monde}.
 
 bank() ->
+    dbg:tracer(),
     Nodes = [node(), node(), node()],
     Links = link:perfect_link(Nodes),
     Bebs = beb:start(Links),
     RBs = [R1, _R2, _R3] = erb:start(Bebs),
+    dbg:p(R1,m),
+    
     receive after 100 -> pass end,
     FDs = inc_timeout_fd:start(Links),
     receive after 100 -> pass end,
@@ -82,12 +85,11 @@ bank() ->
     receive after 100 -> pass end,
     
     TOBs = [T1, _T2, _T3] = tob:start(RBs, Consensuss),
-    [A, _B, _C] = bank:start(TOBs),
-
-    dbg:tracer(),
     dbg:p(T1,m),
+
+    [A, _B, _C] = bank:start(TOBs),
     dbg:p(A,m),
-    dbg:p(R1,m),
-    
+
+    receive after 200 -> pass end,
     A ! {create, self(), 1, 10}.
     

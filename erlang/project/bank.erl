@@ -18,16 +18,6 @@ start() ->
     
 init(_Peers, TOB) ->
     utils:subscribe(TOB),
-    %Self = self(),
-    %condition:start(),
-    %condition:upon(
-    %  fun(#bank_state{accounts = Accounts}, Account_ID, Amount) ->
-    %          Total = dict:fetch(Account_ID, Accounts),
-    %          (Total + Amount > 0)
-    %  end
-    %  fun(State) ->
-    %          Self ! {negative_account_fee}
-    %  end),
 	loop(#bank_state{tob = TOB}).
 
 
@@ -180,13 +170,6 @@ loop(State) ->
                             accounts = New_Accounts})
             end
         
-        
-        %{broadcast_create, Amount} ->
-        %    #bank_state{tob = TOB, pendings = P, accounts = Accounts} = State,
-        %    ID = next_account(Accounts),
-        %    TOB ! {broadcast, self(), {create, ID, Amount}},
-        %    loop(State#bank_state{accounts = New_Acc,
-        %                          pendings = []})
                 
     end.
 
