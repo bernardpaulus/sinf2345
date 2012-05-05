@@ -90,33 +90,33 @@ loop(State) ->
         {transfer, From_Pid, From_Acc, To_Acc, Amount} ->
             #bank_state{accounts = Accounts} = State,
             
+            %% Remove from one account, add to the other
             self() ! {add, From_Pid, From_Acc, -Amount},
             self() ! {add, From_Pid, To_Acc, Amount},
 
             %% QUESTION : takes 1% if any of the two account is negative or just from ?
             case dict:find(From_Acc, Accounts) of
-                {ok, Money} ->
-                    case Money - Amount < 0 of
+                {ok, From_Money} ->
+                    case (From_Money - Amount < 0) of
                         true ->
                             %% Negative account, take 1% fee
-                            Fee = Amount - Amount*0.01,
-                            self() ! {add, self(), From_Acc, -Fee};
+                            self() ! {add, self(), From_Acc, -(Amount - Amount*0.01)};
                         false ->
                             %% No change
                             ok
                     end;
+                
                 error ->
                     %% What should we do ?
                     false
             end,
 
             case dict:find(To_Acc, Accounts) of
-                {ok, Money} ->
-                    case Money - Amount < 0 of
+                {ok, To_Money} ->
+                    case To_Money - Amount < 0 of
                         true ->
                             %% Negative account, take 1% fee
-                            Fee = Amount - Amount*0.01,
-                            self() ! {add, self(), To_Acc, -Fee};
+                            self() ! {add, self(), To_Acc, -(Amount - Amount*0.01)};
                         false ->
                             %% No change
                             ok
