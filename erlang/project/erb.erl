@@ -32,14 +32,22 @@ init(_Others, Down) ->
 
 erb_loop(State) ->
     receive
+        %% old simple
         {subscribe, Pid} ->
             #erb_state{my_up = Ups} = State,
             erb_loop(State#erb_state{
                     my_up = sets:add_element(Pid, Ups)});
 
-        {broadcast, _From, _Msg} -> 
+        %% with From and ack
+        {subscribe, From, Pid} = M ->
+            From ! {ack, self(), M},
+            #erb_state{my_up = Ups} = State,
+            erb_loop(State#erb_state{
+                    my_up = sets:add_element(Pid, Ups)});
+
+        {broadcast, From, Msg} -> 
             #erb_state{down = D} = State,
-            D ! {broadcast, _From, {data, self(), _Msg}},
+            D ! {broadcast, From, {data, self(), Msg}},
             erb_loop(State);
 
         %% {deliver, _From_Beb, {data, Self, {{broadcast, From_Up, Msg}, _Seq}}} ->
@@ -49,11 +57,9 @@ erb_loop(State) ->
             case lists:filter(fun(N) -> Msg == N end, Deli) of
                 [] -> 
                     New_State = State#erb_state{delivered = lists:append([Msg], Deli)},
-                    %% io:format("Je suis erb ~p avec la liste ~p~n", [self(),sets:to_list(Ups)]),
                     [Up ! {deliver, From_Up, Msg} || Up <- sets:to_list(Ups)],
-                    
                     Down ! {broadcast, self(), {data, From_Up, Msg}},
                     erb_loop(New_State);
-                true -> erb_loop(State)
+                _ -> erb_loop(State)
             end
     end.
