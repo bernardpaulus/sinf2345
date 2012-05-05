@@ -42,13 +42,14 @@ erb_loop(State) ->
             D ! {broadcast, _From, {data, self(), _Msg}},
             erb_loop(State);
 
-        {deliver, _ , Self, {broadcast, From, Msg}} ->
+        %%{deliver, _ , Self, {broadcast, From, Msg}} ->
+        {deliver, _From_Beb, {data, Self, {broadcast, From_Up, Msg}}} ->
             #erb_state{delivered = Deli, my_up = Ups, down = Down} = State,
             case lists:filter(fun(N) -> Msg == N end, Deli) of
                 [] -> 
                     New_State = State#erb_state{delivered = lists:append([Msg], Deli)},
-                    [Up ! {deliver, From, Msg} || Up <- sets:to_list(Ups)],
-                    Down ! {broadcast, From, {data, self(), Msg}},
+                    [Up ! {deliver, From_Up, Msg} || Up <- sets:to_list(Ups)],
+                    Down ! {broadcast, self(), {data, From_Up, Msg}},
                     erb_loop(New_State);
                 true -> erb_loop(State)
             end
