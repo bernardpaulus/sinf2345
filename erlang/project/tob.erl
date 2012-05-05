@@ -41,8 +41,14 @@ init(_Peers, RB, Consensus) when is_pid(RB) ->
     init(#tob_state{rb = RB, consensus = Consensus}).
 
 init(State) ->
+    io:format("Je suis tob ~p~n", [self()]),
     Self = self(),
-    % TODO subscribe
+    #tob_state{rb = RB, consensus = Consensus} = State,
+    %% utils:subscribe(RB),
+    RB ! {subscribe, self()},
+    %% utils:subscribe(Consensus),
+    Consensus ! {subscribe, self()},
+
     condition:start(),
     condition:upon(
         % Unordered not empty and wait is false
