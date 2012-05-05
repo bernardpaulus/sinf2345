@@ -55,7 +55,7 @@ epoch_loop(State) ->
         {trust, Leader, Leader} ->
             #epoch_state{beb = Beb, lastts = Lastts} = State,
             N = length(State#epoch_state.peers),
-            Beb ! {broadcast, {newepoch, Lastts + N}},
+            Beb ! {broadcast, Self, {newepoch, Lastts + N}},
             epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = Leader});
         
         %% receive newpoch broadcast message
