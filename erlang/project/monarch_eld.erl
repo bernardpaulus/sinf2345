@@ -90,7 +90,7 @@ meld_loop(State) ->
                 {ok, Leader_Ups} -> Leader_Ups;
                 error -> Leader_Ups = []
             end,
-            [ Up ! {trust, Self, New_Leader, Leader_Ups} 
+            [ Up ! {trust, Self, New_Leader, {ups, Leader_Ups}}
                     || Up <- sets:to_list(My_Up) ],
                 State1 = State#eld_state{
                             leader = New_Leader},

@@ -52,21 +52,35 @@ epoch_loop(State) ->
 
         %% receive a leader election message from meld (Down)
         %% will only match when the Down node is the leader
-        {trust, Leader, Leader} ->
+        {trust, Leader, Leader, {ups, _Epoch_Changes}} ->
             #epoch_state{beb = Beb, lastts = Lastts} = State,
             N = length(State#epoch_state.peers),
             Beb ! {broadcast, Self, {newepoch, Lastts + N}},
-            epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = Leader});
+            epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = Self});
+
+        {trust, _From, _Leader, {ups, LD_Ups}} ->
+            #epoch_state{peers = Peers} = State,
+            % eliminate non-peer processes
+            EC_Leaders = sets:intersection(
+                                    sets:from_list(Peers),
+                                    sets:from_list(LD_Ups)),
+            case sets:to_list(EC_Leaders) of
+                [EC_Leader] ->
+                    epoch_loop(State#epoch_state{trusted = EC_Leader});
+                _ -> 
+                    epoch_loop(State#epoch_state{trusted = none})
+            end;
         
         %% receive newpoch broadcast message
         {deliver, From, {newepoch, New_Ts}} ->
-            #epoch_state{lastts = Lastts, trusted = Trust, down = Down, p2p_link = Link} = State,
+            #epoch_state{lastts = Lastts, trusted = Trust, down = Down,
+                p2p_link = Link} = State,
             if Trust == From, New_Ts > Lastts ->
                     Down ! {startepoch, New_Ts, Trust},
                     epoch_loop(State#epoch_state{lastts = New_Ts});
                
                true ->
-                    Link ! {send, Self, Trust, {nack, Self}},
+                    Link ! {send, Self, From, {nack, Self}},
                     epoch_loop(State)
             end;
         
@@ -79,7 +93,7 @@ epoch_loop(State) ->
                     Beb ! {broadcast, {newepoch, Lastts + N}},
                     epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = From});
                true ->
-                    pass
+                    epoch_loop(State)
             end
         end.
 
