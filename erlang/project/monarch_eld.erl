@@ -10,6 +10,7 @@
 -record(eld_state, {
           peers = [],
           my_up = sets:new(),
+          ups_of_others = dict:new(),
           suspected = sets:new(),
           leader = none,
           p2p_link = none}). % p2p links to up nodes
@@ -45,11 +46,24 @@ meld_loop(State) ->
     Self= self(),
     receive
         % add a process to the eligeable list
-        {subscribe, Pid} ->
-            #eld_state{my_up = Up} = State,
-            % check avoid double subscription -> no! effect is the same
-            meld_loop(State#eld_state{my_up = sets:add_element(Pid, Up)});
+        {subscribe, Up} = M ->
+            #eld_state{my_up = My_Up, peers = Peers, ups_of_others = O_Ups,
+                p2p_link = Link} = State,
+            % TODO send all
+            [Link ! {send, self(), Other, M} || 
+                Other <- Peers, Other /= self()],
+            meld_loop(State#eld_state{
+                my_up = sets:add_element(Up, My_Up),
+                ups_of_others = dict:append(self(), Up, O_Ups)}); 
 
+
+        % receive subscription on another meld
+        {deliver, Other, Self, {subscribe, Up}} -> 
+            O_Ups = State#eld_state.ups_of_others,
+            meld_loop(State#eld_state{
+                    ups_of_others = dict:append(Other, Up, O_Ups)});
+    
+    
         % add a pid and its subscribers to the list of considered dead
         {suspect, _From, Subscribers} ->
             % case sets:is_element(Leader, Subscribers) of % Leader == bottom !
@@ -59,6 +73,7 @@ meld_loop(State) ->
             condition:check(State1),
             meld_loop(State1);
 
+    
         % oups it seems you are not dead after all, welcome back
         {restore, _From, Subscribers} ->
             #eld_state{suspected = Suspected} = State,
@@ -66,16 +81,21 @@ meld_loop(State) ->
                         suspected = sets:subtract(Suspected, Subscribers)},
             condition:check(State1),
             meld_loop(State1);
+    
 
         % leader /= max_rank(Peers \ suspected)
         {leader_not_trusted, New_Leader} -> 
-            #eld_state{my_up = My_Up} = State,
-            [ Up ! {trust, Self, New_Leader} 
-                || Up <- sets:to_list(My_Up) ],
-            State1 = State#eld_state{
-                        leader = New_Leader},
-            condition:check(State1),
-            meld_loop(State1)
+            #eld_state{my_up = My_Up, ups_of_others = O_Ups} = State,
+            case dict:find(New_Leader, O_Ups) of
+                {ok, Leader_Ups} -> Leader_Ups;
+                error -> Leader_Ups = []
+            end,
+            [ Up ! {trust, Self, New_Leader, Leader_Ups} 
+                    || Up <- sets:to_list(My_Up) ],
+                State1 = State#eld_state{
+                            leader = New_Leader},
+                condition:check(State1),
+                meld_loop(State1)
             
     end.
 
