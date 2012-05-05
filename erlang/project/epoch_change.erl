@@ -14,6 +14,8 @@
           trusted = none,
           p2p_link = none,
           my_up = sets:new(),
+          ts = ts,
+          n = n,
           lastts = 0}).
 
 %% @spec (Downs, Bebs, Links) -> epoch_change :: [pid()]
@@ -46,7 +48,8 @@ init(Peers, Leader_Det, Beb, Link) ->
     % and additionnally force to get a {trust ..}
     Leader_Det ! {force_trust, self()},
     epoch_loop(#epoch_state{peers = Peers, down = Leader_Det, p2p_link = Link,
-            beb = Beb, lastts = rank(Peers), trusted = Leader}).
+            beb = Beb, lastts = 0, trusted = Leader, ts = rank(Peers),
+            n = length(Peers)}).
 
 epoch_loop(State) ->
     Self= self(),
@@ -54,18 +57,15 @@ epoch_loop(State) ->
         %% add a Leader driven consensus to the list of ups
         {subscribe, Pid} ->
             #epoch_state{my_up = Up} = State,
-            %% check avoid double subscription
-            % no! we don't give a damn: the net effect is the same
             epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)});
 
         %% receive a leader election message from meld (Down)
         %% will only match when the Down node is the leader
         {trust, Leader, Leader, {ups, _Epoch_Changes}} ->
-            #epoch_state{beb = Beb, lastts = Lastts} = State,
-            N = length(State#epoch_state.peers),
+            #epoch_state{beb = Beb, ts = Ts, n = N} = State,
             % io:format("~p trusts self()~n", [self()]),
-            Beb ! {broadcast, Self, {newepoch, Lastts + N}},
-            epoch_loop(State#epoch_state{lastts = Lastts + N, trusted = Self});
+            Beb ! {broadcast, Self, {newepoch, Ts + N}},
+            epoch_loop(State#epoch_state{ts = Ts + N, trusted = Self});
 
         {trust, _From, _Leader, {ups, LD_Ups}} ->
             #epoch_state{peers = Peers} = State,
@@ -99,11 +99,10 @@ epoch_loop(State) ->
         
         %% receive non acknowledgment
         {deliver, _From, Self, {nack, _From}} ->
-            #epoch_state{lastts = Lastts, trusted = Trust, beb = Beb} = State,
+            #epoch_state{ts = Ts, trusted = Trust, beb = Beb, n = N} = State,
             if Trust == Self ->
-                    N = length(State#epoch_state.peers),
-                    Beb ! {broadcast, Self, {newepoch, Lastts + N}},
-                    epoch_loop(State);
+                    Beb ! {broadcast, Self, {newepoch, Ts + N}},
+                    epoch_loop(State#epoch_state{ts = Ts + N});
                true ->
                     epoch_loop(State)
             end
