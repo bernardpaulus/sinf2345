@@ -45,12 +45,38 @@ We believe this language is highly adequate for concurrent applications and that
 This language handles also very well events and made easier the implementation of proposed algorithm in the reference book.
 
 \section{Architecture}
-To realise the distributed system, we used the reference book ``Reliable and Secure Distributed Programming'' by C. Cachin, R. Guerraoui and L. Rodrigues.
+To realise the distributed system, we used the reference book ``Reliable and Secure Distributed Programming'' by C. Cachin, R. Guerraoui and L. Rodrigues second edition.
 We used a architecture based on layers and encapsulation of messages.
+Each module is connected to other and behave upon events (recieved messages from other modules).
 
-\subsection*{Link}
-We used the \emph{perfect link} module\footnote{Module 2.3 in reference book} for basic point to point communication.
+\subsection*{Links}
+We used the \textbf{perfect link} module\footnote{Module 2.3 p37 in reference book} for basic point to point communication.
 These are at the lowest level of our architecture and simply transmit messages to above modules.
+The perfect link ensures \emph{reliability} and the \emph{no duplication} property.
+
+\subsection*{Broadcasts}
+We used the \textbf{best effort broadcast} module\footnote{Module 3.1 p75 in reference book} for implement the broadcast messages between nodes.
+This module transmit messages to the adequate perfect links.
+As we want to handle failing nodes, we used a \textbf{reliable broadcast} algorithm\footnote{Module 3.2 p77 in reference book}.
+To ensure the \emph{agreeement} property, we implemented the \textbf{eager reliable broadcast} algorithm\footnote{Algorithm 3.3 p80 in reference book}.
+
+\subsection*{Failure detector}
+\textbf{eventual failure detector}
+\textbf{increasing timeout failure detector}
+
+\subsection*{Leader detector}
+\textbf{monarchical eventual leader detector}
+\textbf{eventual leader detector}
+
+\subsection*{Consensus}
+\textbf{read write epoch change}
+\textbf{leader based epoch change}
+\textbf{leader driven consensus}
+\textbf{consensus}
+
+\subsection*{Total order broadcast}
+\textbf{consensus based total order broadcast}
+\textbf{total order broadcast}
 
 \section{Manual}
 
