@@ -104,26 +104,21 @@ perfect_link(Nodes) when is_atom(hd(Nodes)) ->
 
 perfect_link([]) -> []. % particular case
 
--define(delta, 100).
+
+-define(delay, 100).
+-define(max_delay, 2000).
 
 % @type pl_state() = #pl_state{
 %    others = [pid()], 
 %    down = pid(), 
 %    my_up = sets(), 
-%    all_up = dict(),
-%    seq = integer(),
-%    buffer = list(),
-%    delta = integer(), 
-%    ttl = integer() 
+%    all_up = dict()
 %    }
 -record(pl_state, {
     others = [], 
     down = none, 
     my_up = sets:new(), 
-    all_up = dict:new(),
-    buffer = [],
-    delta = ?delta, % ms
-    ttl = 64 % number of iterations
+    all_up = dict:new()
     }).
 
 % @doc starts the perfect link.
@@ -136,14 +131,7 @@ perfect_link_init(Others, Down) ->
 % {subscribe, Up},
 % {send, From, To, Msg},
 % {deliver, From, To, Msg} -> used by the lower levels
-perfect_link_loop(State0) ->
-    % loop each 100 ms when messages are delayed/reordered, upon message reception
-    % otherwise
-    %
-    % TTL = time to live = number of iterations before sending
-    % the idea is to reorder/delay messages quickly when messages are exchanged
-    % quickly
-    State = perfect_link_loop_decrement_ttl(State0),
+perfect_link_loop(State) ->
     Self = self(),
     receive
         {subscribe, Up} = M ->
@@ -163,23 +151,21 @@ perfect_link_loop(State0) ->
             Down ! {send, self(), Other, M},
             _From ! ok,
             perfect_link_loop(State);
-            
-        {send, _, To, _}  = M ->
-            #pl_state{down = Down, all_up = All_Up, ttl =
-                Max_TTL, buffer = Buffer} = State,
+
+        {send, _, To, _ } = M ->
+            #pl_state{down = Down, all_up = All_Up} = State,
             Other = dict:fetch(To, All_Up), % crash process if not found in dict
             Msg = {send, self(), Other, M},
             P = random:uniform(),
             if 
                 P < 0.2 -> % Msg reordering
-                    TTL = random:uniform(Max_TTL) + 1, % number of iterations
-                    perfect_link_loop(State#pl_state{
-                            buffer = [{TTL, Msg} | Buffer]});
+                    erlang:send_after(random:uniform(?max_delay), Down, Msg);
                 true -> 
-                    Down ! Msg,
-                    perfect_link_loop(State)
-            end;
-
+                    % always delay a bit to keep "instant computation" hypothesis
+                    erlang:send_after(?delay, Down, Msg)
+            end,
+            perfect_link_loop(State);
+            
         {deliver, _, Self, {send, From, To, Msg}} -> 
             #pl_state{my_up = My_Up} = State,
             % translate the "send" in "deliver"
@@ -192,20 +178,5 @@ perfect_link_loop(State0) ->
             All_Up = State#pl_state.all_up,
             perfect_link_loop(State#pl_state{
                     all_up = dict:store(Up, Other, All_Up)})
-
-    after State#pl_state.delta ->
-        perfect_link_loop(State)
     end.
 
-% @spec (pl_state()) -> pl_state()
-% @doc decrements all the ttls present in the buffer, and sends the ones that reached
-% zero.
-perfect_link_loop_decrement_ttl(State) ->
-    #pl_state{down = Down, buffer = Old_Buffer} = State,
-    TTL_Dec = [ {TTL - 1, Msg} || {TTL, Msg} <- Old_Buffer],
-    {TTL_Zero, Buffer} = partition(fun({TTL, _}) ->  TTL == 0 end, TTL_Dec),
-    foreach(fun({0, Msg}) -> Down ! Msg end, TTL_Zero),
-    State#pl_state{
-        buffer = Buffer,
-        delta = if  Buffer == [] -> infinity;
-                    true -> ?delta end}.
