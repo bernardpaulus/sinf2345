@@ -63,3 +63,15 @@ tob() ->
     
     receive after 100 -> pass end,
     A ! {broadcast, self(), coucou_le_monde}.
+
+bank() ->
+    Nodes = [node(), node(), node()],
+    TOBs = [T1, _T2, _T3] = tob:start(Nodes),
+    [A, _B, _C] = bank:start(TOBs),
+
+    dbg:tracer(),
+    dbg:p(T1,m),
+    dbg:p(A,m),
+    
+    A ! {create, self(), 1, 10}.
+    
