@@ -42,8 +42,15 @@ The system is distributed in a way such that any bank node is award of the full 
 
 To build this project, we decided to use the programming language Erlang.
 We believe this language is highly adequate for concurrent applications and that motivated us to use it for this project.
+This language handles also very well events and made easier the implementation of proposed algorithm in the reference book.
 
 \section{Architecture}
+To realise the distributed system, we used the reference book ``Reliable and Secure Distributed Programming'' by C. Cachin, R. Guerraoui and L. Rodrigues.
+We used a architecture based on layers and encapsulation of messages.
+
+\subsection*{Link}
+We used the \emph{perfect link} module\footnote{Module 2.3 in reference book} for basic point to point communication.
+These are at the lowest level of our architecture and simply transmit messages to above modules.
 
 \section{Manual}
 
