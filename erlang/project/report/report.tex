@@ -93,7 +93,9 @@ The system is based on consensus abstraction to be able, at any time, to decide 
 
 \subsection*{Banking system}
 Once we have implemented all our modules, we can build our banking module on top of a reliable system.
-
+Each bank node can handle users commands (account creation and money transfer).
+Based on the rules specified (negative account fee), the bank node broadcast the adequate atomic messages to the banking network.
+The transactions are validated only once the initial node recieves and acknowledgment of the other nodes.
 
 \section{Manual}
 
