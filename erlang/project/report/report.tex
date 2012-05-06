@@ -40,7 +40,7 @@
 \tableofcontents  
 \section*{Introduction}
 The aim of the project is to build a distributed banking system. % QUESTION : Usefull to remind the full mission ?
-The system is distributed in a way such that any bank node is award of the full banking system state at all time but only atomics messages are transfered between nodes.
+The system is distributed in a way such that any bank node is award of the full banking system state at all time but only atomics messages are transfered between nodes.\\
 
 To build this project, we decided to use the programming language Erlang.
 We believe this language is highly adequate for concurrent applications and that motivated us to use it for this project.
@@ -129,7 +129,8 @@ For example \texttt{B ! \{create, S, 3, 5\}.} to create a third account with 5â‚
 To transfer money from an account to another, use the command  \texttt{\#BANK ! \{transfer, S, \#IDFROM, \#IDTO, \#MONEY\}.}.
 For example \texttt{C ! \{transfer, S, 2, 3, 5\}.} to transfer 5â‚¬ from the second account to the third one using the third bank node.
 
-
 \section{Conclusion}
- 
+The choice of Erlang as the choosen programming language allowed us to build a fully concurrent system.
+On the other hand, we couldn't use the proposed framework and had to reimplement several algorithms in the book.
+
 \end{document}
