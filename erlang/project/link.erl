@@ -106,7 +106,7 @@ perfect_link([]) -> []. % particular case
 
 
 -define(delay, 100).
--define(max_delay, 2000).
+-define(max_delay, 200). % !! multiplicated by two for the fd!
 
 % @type pl_state() = #pl_state{
 %    others = [pid()], 
