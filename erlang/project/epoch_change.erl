@@ -16,7 +16,8 @@
           my_up = sets:new(),
           ts = ts,
           n = n,
-          lastts = 0}).
+          lastts = 0, 
+          prevts = 0}).
 
 %% @spec (Downs, Bebs, Links) -> epoch_change :: [pid()]
 %%   Downs = [monarch_eld :: pid()]
@@ -48,11 +49,14 @@ init(Peers, Leader_Det, Beb, Link) ->
     % and additionnally force to get a {trust ..}
     Leader_Det ! {force_trust, self()},
     epoch_loop(#epoch_state{peers = Peers, down = Leader_Det, p2p_link = Link,
-            beb = Beb, lastts = 0, trusted = Leader, ts = rank(Peers),
-            n = length(Peers)}).
+            beb = Beb, lastts = 0, prevts = 0, trusted = Leader, ts = rank(Peers),
+            n = 10}).
+            %n = length(Peers)}).
 
 epoch_loop(State) ->
     Self= self(),
+    #epoch_state{trusted = Trusted, lastts = Lastts, prevts = Previous_Ts}
+        = State,
     receive
         %% add a Leader driven consensus to the list of ups
         {subscribe, Pid} ->
@@ -85,19 +89,26 @@ epoch_loop(State) ->
 
         %% receive newpoch broadcast message
         {deliver, From, {newepoch, New_Ts}} ->
-            #epoch_state{lastts = Lastts, trusted = Trust, my_up = My_Up,
+            #epoch_state{lastts = Lastts, trusted = Trusted, my_up = My_Up,
                 p2p_link = Link} = State,
-            if Trust == Self, New_Ts > Lastts ->
-                    io:format("~p start epoch ~p ~p~n", [Self, New_Ts, Trust]),
-                    [Up ! {startepoch, New_Ts, Trust}
+            if From == Trusted, New_Ts > Lastts ->
+                    io:format("~p start epoch ~p ~p~n", [Self, New_Ts, Trusted]),
+                    [Up ! {startepoch, New_Ts, Trusted}
                         || Up <- sets:to_list(My_Up)],
-                    epoch_loop(State#epoch_state{lastts = New_Ts});
+                    epoch_loop(State#epoch_state{
+                                lastts = New_Ts, 
+                                prevts = Lastts});
                
                true ->
+                    receive after 200 -> wait end,
                     Link ! {send, Self, From, nack},
                     epoch_loop(State)
             end;
         
+        {deliver, Self, Self, nack} when Self == Trusted, Lastts > Previous_Ts ->
+            % ignore it: it's an ack before the last start epoch
+            epoch_loop(State);
+
         %% receive non acknowledgment
         {deliver, _From, Self, nack} ->
             #epoch_state{ts = Ts, trusted = Trust, beb = Beb, n = N} = State,
