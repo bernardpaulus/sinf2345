@@ -85,8 +85,15 @@ In the \textbf{leader driven consensus} algorithm\footnote{Algorithm 5.7 p225 in
 Once we receive a new epoch event and need to switch the epoch, the algorithm aborts the running epoch consensus and initialize the next epoch consensu using the state of the previous one.
 
 \subsection*{Total order broadcast}
-\textbf{consensus based total order broadcast}
-\textbf{total order broadcast}
+For our banking application, ne need to rely on a delivery order in case of concurrent transactions.
+In the previous broadcast abstraction, we used FIFO-order broadcast but we had no assumption on the delivery order.
+The \textbf{total order broadcast} module\footnote{Module 6.1 p283 in reference book} aims to fix this problem and order all messages, even those not from different senders.
+This module was implemented using the \textbf{consensus based total order broadcast} algorithm\footnote{Algorithm 6.1 p285 in reference book}.
+The system is based on consensus abstraction to be able, at any time, to decide on a set of unordered messages between two processes.
+
+\subsection*{Banking system}
+Once we have implemented all our modules, we can build our banking module on top of a reliable system.
+
 
 \section{Manual}
 
