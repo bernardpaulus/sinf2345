@@ -142,15 +142,20 @@ The result of the function needs is a list that needs to be stored in a list.
 To create a new account use the command \texttt{bank:create\_account(\#BANK, \#ID, \#MONEY).}.
 For example \texttt{bank:create\_account(B, 3, 5).} to create a third account with 5€ on it using the second bank (don't forget the ending dot).\\
 
-To transfer money from an account to another, use the command  \texttt{bank:transfer(\#BANK, \#IDFROM, \#IDTO, \#MONEY).}.
-For example \texttt{bank:transfer(C, 2, 3, 5).} to transfer 5€ from the second account to the third one using the third bank node.
+To transfer money from an account to another, use the command  \texttt{bank:transfer\_money(\#BANK, \#IDFROM, \#IDTO, \#MONEY).}.
+For example \texttt{bank:transfer\_money(C, 2, 3, 5).} to transfer 5€ from the second account to the third one using the third bank node.\\
+
+To display the amount on the account of the user, use the command  \texttt{bank:check\_account(\#BANK, \#ID).}.
+For example \texttt{bank:check\_account(A, 1).} to check the amount on the account of the first user using the first bank.\\
 
 \begin{verbatim}
 $ erl
 ...
 1> [A, B, C, D] = test:main(4). %% 4 bank nodes, 2 accounts, 1 transfer
-2> bank:create(C,3,10). %% create 3rd account
-3> bank:transfer(D,3,1,5). %% transfer 5€ 3 -> 1
+2> bank:create_account(C,3,10). %% create 3rd account
+3> bank:transfer_money(D,3,1,5). %% transfer 5€ 3 -> 1
+4> bank:check_account(B,3).
+Account 3 has 5€ leftok
 \end{verbatim}
 
 \section{Conclusion}
