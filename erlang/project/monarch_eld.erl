@@ -50,7 +50,7 @@ meld_loop(State) ->
         {subscribe, Up} = M ->
             #eld_state{my_up = My_Up, peers = Peers, ups_of_others = O_Ups,
                 p2p_link = Link} = State,
-            % TODO send all
+            link(Up),
             [Link ! {send, self(), Other, M} || 
                 Other <- Peers, Other /= self()],
             meld_loop(State#eld_state{

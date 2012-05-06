@@ -59,6 +59,7 @@ damn_simple_link_loop(State) ->
             #dsl_state{others=Others, my_up = My_Up, all_up=All_Up}
                     = State,
             % transmit the request to all others
+            link(Up),
             [Other ! {deliver, self(), Other, M} || 
                     Other <- Others, Other /= self()],
             damn_simple_link_loop(State#dsl_state{
@@ -137,6 +138,7 @@ perfect_link_loop(State) ->
             #pl_state{down = Down, others=Others, my_up = My_Up, 
                     all_up=All_Up} = State,
             % transmit the request to all others
+            link(Up),
             [Down ! {send, self(), Other, M} || 
                     Other <- Others, Other /= self()],
             perfect_link_loop(State#pl_state{

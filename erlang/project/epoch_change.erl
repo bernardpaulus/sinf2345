@@ -61,6 +61,7 @@ epoch_loop(State) ->
         %% add a Leader driven consensus to the list of ups
         {subscribe, Pid} ->
             #epoch_state{my_up = Up} = State,
+            link(Pid),
             epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)});
 
         %% receive a leader election message from meld (Down)

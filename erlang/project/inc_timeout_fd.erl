@@ -42,6 +42,7 @@ inc_timeout_loop(State) ->
         {subscribe, Up} = M ->
             #it_state{down = Down, others=Others, my_up = My_Up, 
                     ups_of_others=O_Ups} = State,
+            link(Up),
             % transmit the request to all others
             [Down ! {send, self(), Other, M} || 
                     Other <- Others, Other /= self()],

@@ -35,11 +35,13 @@ erb_loop(State) ->
         %% old simple
         {subscribe, Pid} ->
             #erb_state{my_up = Ups} = State,
+            link(Pid),
             erb_loop(State#erb_state{
                     my_up = sets:add_element(Pid, Ups)});
 
         %% with From and ack
         {subscribe, From, Pid} = M ->
+            link(Pid),
             From ! {ack, self(), M},
             #erb_state{my_up = Ups} = State,
             erb_loop(State#erb_state{

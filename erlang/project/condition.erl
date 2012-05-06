@@ -9,7 +9,7 @@
 
 % module interface
 start() -> 
-    case gen_server:start_link({local, condition}, ?MODULE, arguments , []) of
+    case gen_server:start({local, condition}, ?MODULE, arguments , []) of
         {ok, Pid} -> Pid;
         {error, {already_started,Pid}} -> Pid
     end.

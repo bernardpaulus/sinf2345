@@ -73,11 +73,13 @@ ldc_loop(State) ->
     receive
         %% old simple
         {subscribe, Pid} ->
+            link(Pid),
             ldc_loop(State#ldc_state{
                        my_ups = [Pid | State#ldc_state.my_ups]});
 
         %% with From and ack
         {subscribe, From, Pid} = M ->
+            link(Pid),
             From ! {ack, self(), M},
             ldc_loop(State#ldc_state{
                        my_ups = [Pid | State#ldc_state.my_ups]});
