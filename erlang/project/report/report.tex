@@ -46,6 +46,7 @@ This language handles also very well events and made easier the implementation o
 
 \section{Architecture}
 To realise the distributed system, we used the reference book ``Reliable and Secure Distributed Programming'' by C. Cachin, R. Guerraoui and L. Rodrigues second edition.
+As the modules and algorithms are tested and well defined, we tried to stick as much as possible to the book and implemented several algorithms from it.
 We used a architecture based on layers and encapsulation of messages.
 Each module is connected to other and behave upon events (recieved messages from other modules).
 
@@ -55,7 +56,13 @@ These are at the lowest level of our architecture and simply transmit messages t
 The perfect link ensures \emph{reliability} and the \emph{no duplication} property.\\
 
 To handle failing nodes in a partially synchronous system, we used an \textbf{eventual failure detector} module\footnote{Module 2.8 p54 in reference book}.
-This was implemented using the \textbf{increasing timeout failure detector} algorithm\footnote{Algorithm 2.7 p55 in reference book}.
+This was implemented using the \textbf{increasing timeout failure detector} algorithm\footnote{Algorithm 2.7 p55 in reference book}.\\
+
+Once we have successfully detected faulty processes, we can focus on correct ones and elect a leader.
+The \textbf{eventual leader detector} module\footnote{Module 2.9 p56 in reference book} allows to elect a reliable as a leader to perform certain computations on behalf of the others.
+We implemented the \textbf{monarchical eventual leader detector} algorithm\footnote{Algorithm 2.8 p58 in reference book}.
+This algorithm elect the leader with the highest rank among the alived nodes with the possibility to restore suspected nodes (eg: too slow to reply and were wrongly suspected as failing).
+
 
 \subsection*{Broadcasts}
 We used the \textbf{best effort broadcast} module\footnote{Module 3.1 p75 in reference book} for implement the broadcast messages between nodes.
@@ -64,19 +71,31 @@ As we want to handle failing nodes, we used a \textbf{reliable broadcast} algori
 To ensure the \emph{agreeement} property, we implemented the \textbf{eager reliable broadcast} algorithm\footnote{Algorithm 3.3 p80 in reference book}.
 
 
-\subsection*{Leader detector}
-\textbf{monarchical eventual leader detector}
-\textbf{eventual leader detector}
-
 \subsection*{Consensus}
-\textbf{read write epoch change}
-\textbf{leader based epoch change}
-\textbf{leader driven consensus}
-\textbf{consensus}
+As we are working in a concurrent system, we need to reach to a \textbf{consensus} and decide the next state of the system.
+We used the \textbf{epoch-change} abstraction\footnote{Module 5.3 p218 in reference book} to take a decision on a proposed value.
+This was implemented using the \textbf{leader based epoch change} algorithm\footnote{Algorithm 5.5 p219 in reference book}.
+However the book makes the assumption that the local stack of messages is fifo which may not be true at all time. \\ % explain more here
+
+In the attempt to obtain a consensus, we used the \textbf{epoch consensus} module\footnote{Module 5.4 p221 in reference book}.
+We implemented it using the \textbf{read write epoch consensus} algorithm\footnote{Algorithm 5.6 p223 in reference book}.
+The algorithm uses timestamp in a state value so as to serves the \emph{validity} and \emph{lock-in} or the epoch consensus.
+The method used relies on a majority if correct processes and assumes we have at least more than the half on non-failing nodes.
+In the \textbf{leader driven consensus} algorithm\footnote{Algorithm 5.7 p225 in reference book}, we distinguish the instances of epoch consensus by their timestamp.
+Once we receive a new epoch event and need to switch the epoch, the algorithm aborts the running epoch consensus and initialize the next epoch consensu using the state of the previous one.
 
 \subsection*{Total order broadcast}
-\textbf{consensus based total order broadcast}
-\textbf{total order broadcast}
+For our banking application, ne need to rely on a delivery order in case of concurrent transactions.
+In the previous broadcast abstraction, we used FIFO-order broadcast but we had no assumption on the delivery order.
+The \textbf{total order broadcast} module\footnote{Module 6.1 p283 in reference book} aims to fix this problem and order all messages, even those not from different senders.
+This module was implemented using the \textbf{consensus based total order broadcast} algorithm\footnote{Algorithm 6.1 p285 in reference book}.
+The system is based on consensus abstraction to be able, at any time, to decide on a set of unordered messages between two processes.
+
+\subsection*{Banking system}
+Once we have implemented all our modules, we can build our banking module on top of a reliable system.
+Each bank node can handle users commands (account creation and money transfer).
+Based on the rules specified (negative account fee), the bank node broadcast the adequate atomic messages to the banking network.
+The transactions are validated only once the initial node recieves and acknowledgment of the other nodes.
 
 \section{Manual}
 
