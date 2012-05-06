@@ -55,7 +55,7 @@ init(Peers, Leader_Det, Beb, Link) ->
 
 epoch_loop(State) ->
     Self= self(),
-    #epoch_state{trusted = Trusted, lastts = Lastts, prevts = Previous_Ts}
+    #epoch_state{trusted = Trusted, lastts = Lastts, prevts = _Previous_Ts}
         = State,
     receive
         %% add a Leader driven consensus to the list of ups
@@ -105,9 +105,10 @@ epoch_loop(State) ->
                     epoch_loop(State)
             end;
         
-        {deliver, Self, Self, nack} when Self == Trusted, Lastts > Previous_Ts ->
-            % ignore it: it's an ack before the last start epoch
-            epoch_loop(State);
+        %% fix for non-fifo local communications
+        %{deliver, Self, Self, nack} when Self == Trusted, Lastts > _Previous_Ts ->
+        %    % ignore it: it's an ack before the last start epoch
+        %    epoch_loop(State);
 
         %% receive non acknowledgment
         {deliver, _From, Self, nack} ->
