@@ -5,7 +5,9 @@
 \renewcommand{\ttdefault}{lmtt}
 \renewcommand{\familydefault}{\rmdefault}
 \usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
+%\usepackage[utf8]{inputenc}
+\usepackage[utf8x]{inputenc}
+\usepackage{lmodern,textcomp}
 \setlength{\parskip}{\smallskipamount}
 \setlength{\parindent}{0pt}
 \usepackage{color}
@@ -98,6 +100,30 @@ Based on the rules specified (negative account fee), the bank node broadcast the
 The transactions are validated only once the initial node recieves and acknowledgment of the other nodes.
 
 \section{Manual}
+To launch the program you will need the \texttt{erlang} package installed on your computer.
+This as only been tested on Linux environments.
+Open a terminal an go to the folder containing the code.
+Compile the code using the command \texttt{make}.\\
+
+To launch the code, use the following command :
+\begin{verbatim}
+$ erl -s test main
+Erlang R15B01 (erts-5.9.1) [source] [64-bit] [smp:2:2] [async-threads:0] [hipe] [kernel-poll:false]
+
+Eshell V5.9.1  (abort with ^G)
+1> 
+
+Banking application with 3 nodes
+
+Creating nodes 1 and 2
+Transfering money from #1 to #2
+2>
+\end{verbatim}
+At this state, three banks node (A, B, C) are running.
+The accounts 1 and 2 have been created with respectively 10 and 20 units of money (let's say € for the sake of simplicity).
+5€ have then been transfered from the account 1 to 2.\\
+
+To create a new account use the command \texttt{#BANK ! \{create, #ID, #MONEY\}}
 
 \section{Conclusion}
  
