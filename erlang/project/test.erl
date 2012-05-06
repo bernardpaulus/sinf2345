@@ -100,3 +100,16 @@ bank() ->
     receive after 500 -> pass end,
     A ! {transfer, self(), 1, 2, 5}.    
     
+epoch_change() ->
+    dbg:tracer(),
+    Links = link:perfect_link([node(), node(), node()]),
+    %Links = link:damn_simple_link([node(), node(), node()]),
+    Fail_Dets = inc_timeout_fd:start(Links),
+    LDs  = [_L1, _L2, _L3] = monarch_eld:start(Fail_Dets, Links),
+    Bebs = beb:start(Links),
+    _Dev_Nulls = [utils:dev_null() || _ <- [ 1, 2, 3 ]],
+    Epoch_Changes = [_C1, _C2, _C3] = epoch_change:start(LDs, Bebs, Links), 
+    %[dbg:p(C,m) || C <- Epoch_Changes], 
+    %[E ! {subscribe, O} || {E, O} <- lists:zip(Epoch_Changes, _Dev_Nulls)],
+    %[dbg:p(O, m) || O <- _Dev_Nulls], 
+    Epoch_Changes.

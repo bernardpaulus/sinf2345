@@ -105,7 +105,7 @@ perfect_link(Nodes) when is_atom(hd(Nodes)) ->
 perfect_link([]) -> []. % particular case
 
 
--define(max_delay, 500). % !! multiplicated by two for the fd!
+-define(max_delay, 200). % !! multiplicated by two for the fd!
 
 % @type pl_state() = #pl_state{
 %    others = [pid()], 

@@ -61,44 +61,45 @@ epoch_loop(State) ->
 
         %% receive a leader election message from meld (Down)
         %% will only match when the Down node is the leader
-        {trust, Leader, Leader, {ups, _Epoch_Changes}} ->
-            #epoch_state{beb = Beb, ts = Ts, n = N} = State,
-            % io:format("~p trusts self()~n", [self()]),
-            Beb ! {broadcast, Self, {newepoch, Ts + N}},
-            epoch_loop(State#epoch_state{ts = Ts + N, trusted = Self});
+        {trust, _From, _, {ups, LD_Ups}} ->
+            #epoch_state{trusted = Trusted, p2p_link = Pl, peers = Peers} = State,
+            % if Self /= Trusted
+            %Self /= Trusted andalso Pl ! {send, Self, Trusted, nack},
+            if Self /= Trusted ->
+                    Pl ! {send, Self, Trusted, nack};
+               true -> true
+            end,
 
-        {trust, _From, _Leader, {ups, LD_Ups}} ->
-            #epoch_state{peers = Peers} = State,
-            % eliminate non-peer processes
-            EC_Leaders = sets:intersection(
+            [Leader] = sets:to_list(sets:intersection(
                                     sets:from_list(Peers),
-                                    sets:from_list(LD_Ups)),
-            case sets:to_list(EC_Leaders) of
-                [EC_Leader] ->
-                    % io:format("~p trusts ~p~n", [self(), EC_Leader]),
-                    epoch_loop(State#epoch_state{trusted = EC_Leader});
-                _Leaders -> 
-                    % io:format("~p trusts none: received ~p~n", [self(), _Leaders]),
-                    epoch_loop(State#epoch_state{trusted = none})
+                                    sets:from_list(LD_Ups))),
+            if 
+                Leader == Self ->
+                    #epoch_state{beb = Beb, ts = Ts, n = N} = State,
+                    % io:format("~p trusts self()~n", [self()]),
+                    Beb ! {broadcast, Self, {newepoch, Ts + N}},
+                    epoch_loop(State#epoch_state{ts = Ts + N, trusted = Self});
+                true ->
+                    epoch_loop(State#epoch_state{trusted = Leader})
             end;
-        
+
         %% receive newpoch broadcast message
         {deliver, From, {newepoch, New_Ts}} ->
             #epoch_state{lastts = Lastts, trusted = Trust, my_up = My_Up,
                 p2p_link = Link} = State,
-            if Trust == From, New_Ts > Lastts ->
+            if Trust == Self, New_Ts > Lastts ->
                     io:format("~p start epoch ~p ~p~n", [Self, New_Ts, Trust]),
                     [Up ! {startepoch, New_Ts, Trust}
                         || Up <- sets:to_list(My_Up)],
                     epoch_loop(State#epoch_state{lastts = New_Ts});
                
                true ->
-                    Link ! {send, Self, From, {nack, Self}},
+                    Link ! {send, Self, From, nack},
                     epoch_loop(State)
             end;
         
         %% receive non acknowledgment
-        {deliver, _From, Self, {nack, _From}} ->
+        {deliver, _From, Self, nack} ->
             #epoch_state{ts = Ts, trusted = Trust, beb = Beb, n = N} = State,
             if Trust == Self ->
                     Beb ! {broadcast, Self, {newepoch, Ts + N}},

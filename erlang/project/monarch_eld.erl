@@ -44,6 +44,7 @@ init(Peers, FD, Link) ->
 
 meld_loop(State) ->
     Self= self(),
+    condition:check(State),
     receive
         % add a process to the eligeable list
         {subscribe, Up} = M ->
@@ -70,7 +71,6 @@ meld_loop(State) ->
             State1 = State#eld_state{
                         suspected = sets:union(Subscribers, 
                              State#eld_state.suspected)},
-            condition:check(State1),
             meld_loop(State1);
 
     
@@ -79,23 +79,31 @@ meld_loop(State) ->
             #eld_state{suspected = Suspected} = State,
             State1 = State#eld_state{
                         suspected = sets:subtract(Suspected, Subscribers)},
-            condition:check(State1),
             meld_loop(State1);
     
 
         % leader /= max_rank(Peers \ suspected)
         {leader_not_trusted, New_Leader} -> 
-            #eld_state{my_up = My_Up, ups_of_others = O_Ups} = State,
-            case dict:find(New_Leader, O_Ups) of
-                {ok, Leader_Ups} -> Leader_Ups;
-                error -> Leader_Ups = []
-            end,
-            [ Up ! {trust, Self, New_Leader, {ups, Leader_Ups}}
-                    || Up <- sets:to_list(My_Up) ],
-            State1 = State#eld_state{
-                        leader = New_Leader},
-            condition:check(State1),
-            meld_loop(State1);
+            L = State#eld_state.leader,
+            case New_Leader of
+                L ->
+                    % nothing to do
+                    meld_loop(State);
+                _ ->
+                    #eld_state{my_up = My_Up, ups_of_others = O_Ups} = State,
+                    case dict:find(New_Leader, O_Ups) of
+                        {ok, Leader_Ups} -> Leader_Ups;
+                        error -> Leader_Ups = []
+                    end,
+                    io:format("ld ~p trust ~p, ~p~n", 
+                            [Self, New_Leader, Leader_Ups]),
+                    [ Up ! {trust, Self, New_Leader, {ups, Leader_Ups}}
+                            || Up <- sets:to_list(My_Up) ],
+                    State1 = State#eld_state{
+                                leader = New_Leader},
+                    condition:check(State1),
+                    meld_loop(State1)
+            end;
             
         % forcibly reads the reader => initialize reader in epoch_change
         {force_trust, From} ->
@@ -116,7 +124,7 @@ meld_loop(State) ->
 % When multiple leaders are found Multiple is returned
 wait_for_trust(Peers, LD) ->
     LD ! {force_trust, self()},
-    receive after 100 -> wait end,
+    receive after 1000 -> wait end,
     receive 
         {trust, _Self, _New_Leader, {ups, Leader_Ups}} ->
             Leader_Ups
