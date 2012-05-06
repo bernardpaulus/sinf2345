@@ -59,7 +59,7 @@ inc_timeout_loop(State) ->
         {timeout} ->
             #it_state{alive = Alive, suspected = Suspected, delay = Delay,
                     others = Others} = State,
-            io:format("~p delay: ~p~n", [Self, Delay]),
+            % io:format("~p delay: ~p~n", [Self, Delay]),
             case sets:size(sets:intersection(Alive, Suspected)) of
                 X when X > 0 ->
                     State1 = State#it_state{delay = Delay + ?delta};
