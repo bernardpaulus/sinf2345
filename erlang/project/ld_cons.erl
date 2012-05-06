@@ -18,7 +18,8 @@
           epoch_cons = none,
           epoch_chang = none,
           my_ups = [],
-          peers = []
+          peers = [],
+          round = 0
           }).
 
 
@@ -30,9 +31,13 @@ start(Epoch_Conss, Epoch_Changes) when
                           [[Epoch_Chang] || Epoch_Chang <- Epoch_Changes]).
 
 
+% @equiv init(Peers, Epoch_Cons, Epoch_Chang, 0)
+init(Peers, Epoch_Cons, Epoch_Chang) ->
+    init(Peers, Epoch_Cons, Epoch_Chang, 0).
+
 %% Epoch_Chang : a Monarchical Eventual Leader Detector
 %% Peers : peers in the monarch_eld
-init(Peers, Epoch_Cons, Epoch_Chang) ->
+init(Peers, Epoch_Cons, Epoch_Chang, Round) ->
     Self = self(),
     L0 = monarch_eld:max_rank(Peers, sets:from_list(Peers)),
     Epoch_Cons ! {subscribe, self()},
@@ -62,7 +67,8 @@ init(Peers, Epoch_Cons, Epoch_Chang) ->
                         lead = L0,
                         newts = 0,
                         newl = none,
-                        peers = Peers}).
+                        peers = Peers,
+                        round = Round}).
 
 
 %% TODO add restart/reinit
@@ -91,9 +97,8 @@ ldc_loop(State) ->
         
         %% There is a new epoch, abort
         {startepoch, New_TS, New_L} ->
-            #ldc_state{epoch_cons = EC} = State,
-            io:format("~p startepoch ~p ~p", [self(), New_TS, New_L]),
-            EC ! {abort, Self, New_TS},
+            #ldc_state{epoch_cons = EC, newts = Old_Ts} = State,
+            EC ! {abort, Self, Old_Ts},
             ldc_loop(State#ldc_state{newts = New_TS, newl = New_L});
         
         %% The EpochConsensus has been aborted
@@ -101,7 +106,6 @@ ldc_loop(State) ->
             #ldc_state{epoch_cons = EC, newts = New_TS, newl = New_L} = State,
             %% initialize a new instance of epoch consensus with timestamp ets
             %% Epoch_Cons = rw_epoch_cons:start(Beb, Link, New_TS, Abo_State),
-            io:format("~p reinit", [self()]),
             Epoch_Cons = rw_epoch_cons:reinit(EC, New_TS, Abo_State),
             New_State  = State#ldc_state{proposed = false, ets = New_TS, lead = New_L, epoch_cons = Epoch_Cons},
             condition:check(New_State),
@@ -109,13 +113,13 @@ ldc_loop(State) ->
 
         %% Decide on a value
         {decide, Val, Ets} when State#ldc_state.ets == Ets ->
-            #ldc_state{decided = D, my_ups = My_Ups} = State,
+            #ldc_state{decided = D, my_ups = My_Ups, round = Round} = State,
             case D of
                 false ->
                     io:format("~p decided ~p ~n", [self(), Val]),
-                    [Up ! {decide, Val, Ets} || Up <- My_Ups],
+                    [Up ! {decide, Val, Round} || Up <- My_Ups],
                     ldc_loop(State#ldc_state{decided = true});
-                true ->
+                true -> % should never be true
                     ldc_loop(State)
             end;
 
@@ -128,18 +132,19 @@ ldc_loop(State) ->
         
 
         %% reinitalize the LDC
-        {reinit, Pid} = M ->
-            #ldc_state{peers = Peers, epoch_cons = Epoch_Cons, epoch_chang = Epoch_Chang, my_ups = My_Ups} = State,
+        {reinit, Pid, New_Round} = M ->
+            #ldc_state{peers = Peers, epoch_cons = Epoch_Cons, 
+                epoch_chang = Epoch_Chang, my_ups = My_Ups} = State,
             Target = self(),
             spawn(fun() -> % re-subscribe my ups
                           [utils:subscribe(Up, Target) || Up <- My_Ups],
                           Pid ! {ack, Target, M} % only ack after re-subscription
                   end),
-            init(Peers, Epoch_Cons, Epoch_Chang)
+            init(Peers, Epoch_Cons, Epoch_Chang, New_Round)
     end.
 
 
 
-reinit(LDC) ->
-    M = LDC ! {reinit, self()},
+reinit(LDC, Round) ->
+    M = LDC ! {reinit, self(), Round},
     receive {ack, LDC, M} -> LDC end.

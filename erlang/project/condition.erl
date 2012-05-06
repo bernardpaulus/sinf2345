@@ -1,6 +1,6 @@
 % @doc a condition server
 -module(condition).
--export([start/0, stop/0, upon/2, check/1]).
+-export([start/0, stop/0, upon/2, check/1, clear/0]).
 
 -behaviour(gen_server).
 %% gen_server callbacks
@@ -26,6 +26,9 @@ upon(Condition, Action) when
 check(State) ->
     gen_server:call(condition, {check, State}).
 
+% clear my existing conditions
+clear() ->
+    gen_server:call(condition, {clear}).
 
 
 % callbacks
@@ -50,7 +53,10 @@ handle_call({check, S}, {Pid, _Tag}, State) ->
             end;
         error -> 
             {reply, {error, Pid, has_no_condition}, State}
-    end.
+    end;
+
+handle_call({clear}, {Pid, _Tag}, State) ->
+    {reply, ok, dict:erase(Pid, State)}.
 
 handle_cast(stop, _State) ->
     {stop, normal, stopped}.
