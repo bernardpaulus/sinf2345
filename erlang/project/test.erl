@@ -21,6 +21,8 @@ usage() ->
 %%     end.
     
 main() ->
+    S = self(),
+
     receive after 200 -> pass end,
     io:format("~n~nBanking application with 3 nodes~n~n"),
     receive after 200 -> pass end,
@@ -33,8 +35,9 @@ main() ->
     receive after 300 -> pass end,
     A ! {create, self(), 2, 20},
     
+    io:format("Transfering money from #1 to #2"),
     receive after 500 -> pass end,
-    A ! {transfer, self(), 1, 2, 5}.    
+    A ! {transfer, self(), 1, 2, 5}.
 
 string_to_int(String) ->
     try

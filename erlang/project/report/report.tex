@@ -123,7 +123,12 @@ At this state, three banks node (A, B, C) are running.
 The accounts 1 and 2 have been created with respectively 10 and 20 units of money (let's say € for the sake of simplicity).
 5€ have then been transfered from the account 1 to 2.\\
 
-To create a new account use the command \texttt{#BANK ! \{create, #ID, #MONEY\}}
+To create a new account use the command \texttt{\#BANK ! \{create, S, \#ID, \#MONEY\}.}.
+For example \texttt{B ! \{create, S, 3, 5\}.} to create a third account with 5€ on it using the second bank (don't forget the ending dot).\\
+
+To transfer money from an account to another, use the command  \texttt{\#BANK ! \{transfer, S, \#IDFROM, \#IDTO, \#MONEY\}.}.
+For example \texttt{C ! \{transfer, S, 2, 3, 5\}.} to transfer 5€ from the second account to the third one using the third bank node.
+
 
 \section{Conclusion}
  
