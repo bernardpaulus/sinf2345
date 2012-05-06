@@ -55,7 +55,10 @@ launch(Nodes) ->
     io:format("~n~nBanking application with ~p nodes~n~n",[length(Nodes)]),
     receive after 200 -> pass end,
     [H | T] = bank:start(TOBs),
-    
+
+    %% dbg:tracer(),
+    %% dbg:p(H,m),
+
     io:format("Creating nodes 1 and 2"),
     receive after 200 -> pass end,
     H ! {create, 1, 10},
