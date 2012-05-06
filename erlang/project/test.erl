@@ -74,8 +74,8 @@ ldc() ->
     _LDCs = [A, _B, _C] = ld_cons:start(Epoch_Conss, Epoch_Changes),
 
     %% Debug mode
-    %dbg:tracer(),
-    %dbg:p(A,m),
+    dbg:tracer(),
+    dbg:p(A,m),
     %dbg:p(E1,m),
 
     receive after 100 -> pass end,
@@ -161,3 +161,22 @@ epoch_change() ->
     %[E ! {subscribe, O} || {E, O} <- lists:zip(Epoch_Changes, _Dev_Nulls)],
     %[dbg:p(O, m) || O <- _Dev_Nulls], 
     Epoch_Changes.
+
+rwec() ->
+    %% The links
+    Links = link:perfect_link([node(), node(), node()]),
+    receive after 100 -> pass end,
+    %% Best effort broadcasts
+    Bebs = beb:start(Links),
+    receive after 100 -> pass end,
+    %% The epoch change
+    %% The initial states of the epoch consensus
+    E_States = [{0, bottom} || _ <- Bebs],
+    %% The epoch consensus
+    Epoch_Conss = [_E1, _E2, _E3] = rw_epoch_cons:start(Bebs, Links, 0, E_States),
+
+    %% Debug mode
+    dbg:tracer(),
+    dbg:p(_E1,m),
+
+    Epoch_Conss.

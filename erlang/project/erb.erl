@@ -25,7 +25,7 @@ start([]) -> [].
 % @spec (Down :: pid()) -> void
 % @doc initializes the erb process
 init(_Others, Down) ->
-    io:format("Je suis erb ~p~n", [self()]),
+    %io:format("Je suis erb ~p~n", [self()]),
     Down ! {subscribe, self()},
     erb_loop(#erb_state{down = Down}).
 
