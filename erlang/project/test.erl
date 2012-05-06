@@ -1,5 +1,53 @@
+
+
 -module(test).
 -compile(export_all).
+
+
+usage() ->
+    io:format("Usage: erl -s test main~n"),    
+    io:format("           Start the bank with 3 nodes~n"),
+    %% io:format("       erl -s test main NUM~n"),
+    %% io:format("           Start the bank with NUM nodes~n"),
+    halt(1).
+
+%% main([X]) ->
+%%     case string_to_int(X) == false of
+%%         true ->
+%%             io:format("Bad Arg : ~p~n", [X]),
+%%             usage();
+%%         Y ->
+%%             io:format("Start ~p nodes~n", [Y])
+%%     end.
+    
+main() ->
+    S = self(),
+
+    receive after 200 -> pass end,
+    io:format("~n~nBanking application with 3 nodes~n~n"),
+    receive after 200 -> pass end,
+    [A, _B, _C] = bank:start(),
+    
+    io:format("Creating nodes 1 and 2"),
+    receive after 200 -> pass end,
+    A ! {create, self(), 1, 10},
+
+    receive after 300 -> pass end,
+    A ! {create, self(), 2, 20},
+    
+    io:format("Transfering money from #1 to #2"),
+    receive after 500 -> pass end,
+    A ! {transfer, self(), 1, 2, 5}.
+
+string_to_int(String) ->
+    try
+        list_to_integer(String)
+    catch
+        _:_ ->
+            false
+    end.
+
+
 
 ldc() ->
     %% The links
