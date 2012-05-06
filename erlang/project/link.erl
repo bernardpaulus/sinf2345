@@ -151,11 +151,17 @@ perfect_link_loop(State) ->
             _From ! ok,
             perfect_link_loop(State);
 
-        {send, _, To, _ } = M ->
-            #pl_state{down = Down, all_up = All_Up} = State,
-            Other = dict:fetch(To, All_Up), % crash process if not found in dict
-            Msg = {send, self(), Other, M},
-            erlang:send_after(random:uniform(?max_delay), Down, Msg),
+        {send, From, To, Msg} = M ->
+            #pl_state{down = Down, my_up= My_Up, all_up = All_Up} = State,
+            case sets:is_element(To, My_Up) of
+                true ->
+                    % implement fifo behaviour for local messages
+                    To ! {deliver, From, To, Msg};
+                false ->
+                    Other = dict:fetch(To, All_Up), % crash process if not found in dict
+                    erlang:send_after(random:uniform(?max_delay), Down, 
+                            {send, self(), Other, M})
+            end,
             perfect_link_loop(State);
             
         {deliver, _, Self, {send, From, To, Msg}} -> 
