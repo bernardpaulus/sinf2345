@@ -23,6 +23,8 @@
 \usepackage{breakurl}
 \usepackage{todonotes}
 
+\sloppy
+
 %% DOCUMENT %%
 \begin{document}
 \title{SINF2345 Languages and Algorithms for Distributed Applications \\ Project report}
@@ -47,6 +49,9 @@ We believe this language is highly adequate for concurrent applications and that
 This language handles also very well events and made easier the implementation of proposed algorithm in the reference book.
 
 \section{Architecture}
+\begin{figure}[h]\centering
+  \includegraphics[width=\textwidth]{arch.png}
+\end{figure}
 To realise the distributed system, we used the reference book ``Reliable and Secure Distributed Programming'' by C. Cachin, R. Guerraoui and L. Rodrigues second edition.
 As the modules and algorithms are tested and well defined, we tried to stick as much as possible to the book and implemented several algorithms from it.
 We used a architecture based on layers and encapsulation of messages.
@@ -64,7 +69,6 @@ Once we have successfully detected faulty processes, we can focus on correct one
 The \textbf{eventual leader detector} module\footnote{Module 2.9 p56 in reference book} allows to elect a reliable as a leader to perform certain computations on behalf of the others.
 We implemented the \textbf{monarchical eventual leader detector} algorithm\footnote{Algorithm 2.8 p58 in reference book}.
 This algorithm elect the leader with the highest rank among the alived nodes with the possibility to restore suspected nodes (eg: too slow to reply and were wrongly suspected as failing).
-
 
 \subsection*{Broadcasts}
 We used the \textbf{best effort broadcast} module\footnote{Module 3.1 p75 in reference book} for implement the broadcast messages between nodes.
