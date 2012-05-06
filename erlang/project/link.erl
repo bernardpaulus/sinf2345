@@ -105,8 +105,7 @@ perfect_link(Nodes) when is_atom(hd(Nodes)) ->
 perfect_link([]) -> []. % particular case
 
 
--define(delay, 100).
--define(max_delay, 200). % !! multiplicated by two for the fd!
+-define(max_delay, 500). % !! multiplicated by two for the fd!
 
 % @type pl_state() = #pl_state{
 %    others = [pid()], 
@@ -156,14 +155,7 @@ perfect_link_loop(State) ->
             #pl_state{down = Down, all_up = All_Up} = State,
             Other = dict:fetch(To, All_Up), % crash process if not found in dict
             Msg = {send, self(), Other, M},
-            P = random:uniform(),
-            if 
-                P < 0.2 -> % Msg reordering
-                    erlang:send_after(random:uniform(?max_delay), Down, Msg);
-                true -> 
-                    % always delay a bit to keep "instant computation" hypothesis
-                    erlang:send_after(?delay, Down, Msg)
-            end,
+            erlang:send_after(random:uniform(?max_delay), Down, Msg),
             perfect_link_loop(State);
             
         {deliver, _, Self, {send, From, To, Msg}} -> 
