@@ -7,37 +7,68 @@
 usage() ->
     io:format("Usage: erl -s test main~n"),    
     io:format("           Start the bank with 3 nodes~n"),
-    %% io:format("       erl -s test main NUM~n"),
-    %% io:format("           Start the bank with NUM nodes~n"),
     halt(1).
 
-%% main([X]) ->
-%%     case string_to_int(X) == false of
-%%         true ->
-%%             io:format("Bad Arg : ~p~n", [X]),
-%%             usage();
-%%         Y ->
-%%             io:format("Start ~p nodes~n", [Y])
-%%     end.
-    
-main() ->
-    S = self(),
+main(N) ->    
+    case is_integer(N) of
+        false ->
+            usage();
+        true ->
+            Nodes = [node() || _ <- lists:seq(1,N)],
+            launch(Nodes)
+    end.
 
+main() ->
+    launch([node(), node(), node()]).
+
+launch(Nodes) ->
+    io:format("~nLaunching sub-modules~n"),
+
+    %% P2P links
+    Links = link:perfect_link(Nodes),
+    receive after 100 -> pass end,
+    %% Best effort broadcasts
+    Bebs = beb:start(Links),
+    receive after 100 -> pass end,
+    %% Eager reliable broadcast
+    RBs = erb:start(Bebs),
+    receive after 100 -> pass end,
+    %% The failure detectors
+    FDs = inc_timeout_fd:start(Links),
+    receive after 100 -> pass end,
+    %% Down, leader detectors
+    LDs = monarch_eld:start(FDs, Links),
+    receive after 100 -> pass end,
+    %% The read write epoch consensus
+    RW_Epochs_Cons = rw_epoch_cons:start(Bebs, Links, 1, [{1, bottom} || _ <- Bebs]),
+    receive after 100 -> pass end,
+    %% The epoch change
+    Epoch_Changes = epoch_change:start(LDs, Bebs, Links),
+    receive after 100 -> pass end,
+    %% The Consensus
+    Consensuss = ld_cons:start(RW_Epochs_Cons, Epoch_Changes),
+    receive after 100 -> pass end,
+    %% The total order boradcast
+    TOBs = tob:start(RBs, Consensuss),
+    
     receive after 200 -> pass end,
-    io:format("~n~nBanking application with 3 nodes~n~n"),
+    io:format("~n~nBanking application with ~p nodes~n~n",[length(Nodes)]),
     receive after 200 -> pass end,
-    [A, _B, _C] = bank:start(),
+    [H | T] = bank:start(TOBs),
     
     io:format("Creating nodes 1 and 2"),
     receive after 200 -> pass end,
-    A ! {create, self(), 1, 10},
-
+    H ! {create, 1, 10},
+    
     receive after 300 -> pass end,
-    A ! {create, self(), 2, 20},
+    H ! {create, 2, 20},
     
     io:format("Transfering money from #1 to #2"),
     receive after 500 -> pass end,
-    A ! {transfer, self(), 1, 2, 5}.
+    H ! {transfer, 1, 2, 5},
+    [H | T].
+
+
 
 string_to_int(String) ->
     try

@@ -179,9 +179,9 @@ next_account([], Tot) -> Tot +1;
 next_account([_H | T], Tot) -> next_account(T, Tot+1).
                          
 
-create_user(Amount) ->
-    self() ! {broadcast_create, Amount}.
+create_account(Bank, Id, Amount) ->
+    Bank ! {create, self(), Id, Amount}.
 
-transfer_amount(From, To, Amount) ->
-    self() ! {broadcast_transfer, From, To, Amount}.
+transfer_amount(Bank, From, To, Amount) ->
+    Bank ! {transfer, self, From, To, Amount}.
     
