@@ -35,8 +35,8 @@ start(Epoch_Conss, Epoch_Changes) when
 init(Peers, Epoch_Cons, Epoch_Chang) ->
     Self = self(),
     L0 = monarch_eld:max_rank(Peers, sets:from_list(Peers)),
-    Epoch_Cons ! {suscribe, self()},
-    Epoch_Chang ! {suscribe, self()},
+    Epoch_Cons ! {subscribe, self()},
+    Epoch_Chang ! {subscribe, self()},
 
     %% init propose condition
     condition:start(),
@@ -73,11 +73,13 @@ ldc_loop(State) ->
     receive
         %% old simple
         {subscribe, Pid} ->
+            link(Pid),
             ldc_loop(State#ldc_state{
                        my_ups = [Pid | State#ldc_state.my_ups]});
 
         %% with From and ack
         {subscribe, From, Pid} = M ->
+            link(Pid),
             From ! {ack, self(), M},
             ldc_loop(State#ldc_state{
                        my_ups = [Pid | State#ldc_state.my_ups]});
@@ -90,6 +92,7 @@ ldc_loop(State) ->
         %% There is a new epoch, abort
         {startepoch, New_TS, New_L} ->
             #ldc_state{epoch_cons = EC} = State,
+            io:format("~p startepoch ~p ~p", [self(), New_TS, New_L]),
             EC ! {abort, Self, New_TS},
             ldc_loop(State#ldc_state{newts = New_TS, newl = New_L});
         
@@ -98,6 +101,7 @@ ldc_loop(State) ->
             #ldc_state{epoch_cons = EC, newts = New_TS, newl = New_L} = State,
             %% initialize a new instance of epoch consensus with timestamp ets
             %% Epoch_Cons = rw_epoch_cons:start(Beb, Link, New_TS, Abo_State),
+            io:format("~p reinit", [self()]),
             Epoch_Cons = rw_epoch_cons:reinit(EC, New_TS, Abo_State),
             New_State  = State#ldc_state{proposed = false, ets = New_TS, lead = New_L, epoch_cons = Epoch_Cons},
             condition:check(New_State),
@@ -108,7 +112,7 @@ ldc_loop(State) ->
             #ldc_state{decided = D, my_ups = My_Ups} = State,
             case D of
                 false ->
-                    %% io:format("We have decided on value ~p ~n", [Val]),
+                    io:format("~p decided ~p ~n", [self(), Val]),
                     [Up ! {decide, Val, Ets} || Up <- My_Ups],
                     ldc_loop(State#ldc_state{decided = true});
                 true ->

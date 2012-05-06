@@ -106,11 +106,13 @@ loop(State) ->
 
         % old subscribe
         {subscribe, Pid} ->
+            link(Pid),
             loop(State#tob_state{
                 my_ups = [Pid | State#tob_state.my_ups]});
 
         % added ack to subscriptions
         {subscribe, From, Pid} = M ->
+            link(Pid),
             From ! {ack, self(), M},
             loop(State#tob_state{
                 my_ups = [Pid | State#tob_state.my_ups]})

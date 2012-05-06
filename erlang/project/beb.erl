@@ -48,6 +48,7 @@ beb_loop(State) ->
     receive
         {subscribe, Pid} ->
             #beb_state{my_up = Ups} = State,
+            link(Pid),
             beb_loop(State#beb_state{
                     my_up = sets:add_element(Pid, Ups)});
 
