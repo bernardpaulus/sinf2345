@@ -81,7 +81,11 @@ To ensure the \emph{agreeement} property, we implemented the \textbf{eager relia
 As we are working in a concurrent system, we need to reach to a \textbf{consensus} and decide the next state of the system.
 We used the \textbf{epoch-change} abstraction\footnote{Module 5.3 p218 in reference book} to take a decision on a proposed value.
 This was implemented using the \textbf{leader based epoch change} algorithm\footnote{Algorithm 5.5 p219 in reference book}.
-However the book makes the assumption that the local stack of messages is fifo which may not be true at all time. \\ % explain more here
+We encounters majors problem using this algorithm due to an error in the reference book.
+This was disccused in an furthur errata of the book\footnote{See http://distributedprogramming.net/docs/Errata.pdf} we discovered only recently.
+However the authors made the unexplicit assumption that the local stack of messages is FIFO.
+That assumption was at first not verified and we realised later it is crucial for the success of the algorithm.
+The implemented algorithm has been fixed using both the errata and the FIFO queuing process.\\
 
 In the attempt to obtain a consensus, we used the \textbf{epoch consensus} module\footnote{Module 5.4 p221 in reference book}.
 We implemented it using the \textbf{read write epoch consensus} algorithm\footnote{Algorithm 5.6 p223 in reference book}.
@@ -112,10 +116,11 @@ Compile the code using the command \texttt{make}.\\
 To launch the code, use the following command :
 \begin{verbatim}
 $ erl -s test main
-Erlang R15B01 (erts-5.9.1) [source] [64-bit] [smp:2:2] [async-threads:0] [hipe] [kernel-poll:false]
+Erlang R15B01 (erts-5.9.1) [source] [64-bit] [smp:2:2] [async-threa\
+ds:0] [hipe] [kernel-poll:false]
 
 Eshell V5.9.1  (abort with ^G)
-1> 
+1>
 
 Banking application with 3 nodes
 
@@ -123,18 +128,34 @@ Creating nodes 1 and 2
 Transfering money from #1 to #2
 2>
 \end{verbatim}
-At this state, three banks node (A, B, C) are running.
+At this state, three banks node are running.
 The accounts 1 and 2 have been created with respectively 10 and 20 units of money (let's say € for the sake of simplicity).
 5€ have then been transfered from the account 1 to 2.\\
 
-To create a new account use the command \texttt{\#BANK ! \{create, S, \#ID, \#MONEY\}.}.
-For example \texttt{B ! \{create, S, 3, 5\}.} to create a third account with 5€ on it using the second bank (don't forget the ending dot).\\
+For deeper testing, the users can interact with the bank nodes using the erlang shell interface.
+Launch the shell prompt using simply the \texttt{erl} command and load the module using \texttt{test:main().} or \texttt{test:main(INT).} for a custom number of nodes.
+The result of the function needs is a list that needs to be stored in a list.
+\begin{verbatim}
+1> [A, B, C] = test:main(3).
+\end{verbatim}
 
-To transfer money from an account to another, use the command  \texttt{\#BANK ! \{transfer, S, \#IDFROM, \#IDTO, \#MONEY\}.}.
-For example \texttt{C ! \{transfer, S, 2, 3, 5\}.} to transfer 5€ from the second account to the third one using the third bank node.
+To create a new account use the command \texttt{bank:create\_account(\#BANK, \#ID, \#MONEY).}.
+For example \texttt{bank:create\_account(B, 3, 5).} to create a third account with 5€ on it using the second bank (don't forget the ending dot).\\
+
+To transfer money from an account to another, use the command  \texttt{bank:transfer(\#BANK, \#IDFROM, \#IDTO, \#MONEY).}.
+For example \texttt{bank:transfer(C, 2, 3, 5).} to transfer 5€ from the second account to the third one using the third bank node.
+
+\begin{verbatim}
+$ erl
+...
+1> [A, B, C, D] = test:main(4). %% 4 bank nodes, 2 accounts, 1 transfer
+2> bank:create(C,3,10). %% create 3rd account
+3> bank:transfer(D,3,1,5). %% transfer 5€ 3 -> 1
+\end{verbatim}
 
 \section{Conclusion}
 The choice of Erlang as the choosen programming language allowed us to build a fully concurrent system.
 On the other hand, we couldn't use the proposed framework and had to reimplement several algorithms in the book.
+
 
 \end{document}
