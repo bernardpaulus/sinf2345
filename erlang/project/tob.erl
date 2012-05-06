@@ -41,13 +41,17 @@ init(_Peers, RB, Consensus) when is_pid(RB) ->
     init(#tob_state{rb = RB, consensus = Consensus}).
 
 init(State) ->
-    Self = self(),
     #tob_state{rb = RB, consensus = Consensus} = State,
     utils:subscribe(RB),
     utils:subscribe(Consensus),
     %% reinit to enforce an initial round value
     ld_cons:reinit(Consensus, State#tob_state.round),
     condition:start(),
+    insert_condition(),
+    loop(State).
+
+insert_condition() ->
+    Self = self(),
     condition:upon(
         % Unordered not empty and wait is false
         fun(#tob_state{unordered = Unordered, wait = Wait}) ->
@@ -56,8 +60,7 @@ init(State) ->
         % send message
         fun(_State) ->
             Self ! {unordered_not_empty_and_wait_false}
-        end),
-    loop(State).
+        end).
     
 loop(State) ->
     receive 
@@ -85,6 +88,8 @@ loop(State) ->
                 = State,
             % initialize a new instance c.round of consensus
             ld_cons:reinit(Cons, Round),
+            % put back condition since it popped
+            insert_condition(),
             Cons ! {propose, Unordered},
             loop(State#tob_state{wait = true});
 

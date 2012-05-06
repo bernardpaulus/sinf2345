@@ -125,15 +125,21 @@ loop(State) ->
         % leader: when received enough states, write the highest to all nodes
         {n_states_over_N_div_2} when Self == Leader -> 
             % triggered by check() when #states > N/2
-            #rwe_state{beb = Beb, states = States} = State,
-            case highest(States) of
-                {_ , bottom} -> Tmp_Val = State#rwe_state.tmp_val;
-                {_, Tmp_Val} -> Tmp_Val % set the val to the highest Tmp_Val
-            end,
-            Beb ! {broadcast, self(), {write, Tmp_Val, Ets}},
-            loop(State#rwe_state{
-                    states = dict:new(),
-                    tmp_val = Tmp_Val});
+            #rwe_state{beb = Beb, states = States, n = N} = State,
+            case dict:size(States) > N / 2 of
+                true ->
+                    case highest(States) of
+                        {_ , bottom} -> Tmp_Val = State#rwe_state.tmp_val;
+                        {_, Tmp_Val} -> Tmp_Val % set the val to the highest Tmp_Val
+                    end,
+                    Beb ! {broadcast, self(), {write, Tmp_Val, Ets}},
+                    loop(State#rwe_state{
+                            states = dict:new(),
+                            tmp_val = Tmp_Val});
+                false ->
+                    % because of restarts, sometimes received after restart
+                    loop(State) % ignore
+            end;
 
         % all nodes update their states
         {deliver, Leader, {write, V, Ets}} ->
