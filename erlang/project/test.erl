@@ -21,7 +21,7 @@ usage() ->
 %%     end.
     
 main() ->
-    S = self(),
+    _S = self(),
 
     receive after 200 -> pass end,
     io:format("~n~nBanking application with 3 nodes~n~n"),
@@ -75,8 +75,9 @@ ldc() ->
 
     %% Debug mode
     dbg:tracer(),
-    dbg:p(A,m),
-    %dbg:p(E1,m),
+    %dbg:p(A,m),
+    %dbg:p(hd(Epoch_Changes)),
+    %dbg:p(_E1,m),
 
     receive after 100 -> pass end,
     A ! {propose, myval}.
@@ -97,7 +98,7 @@ tob() ->
     Epoch_Conss = rw_epoch_cons:start(Bebs, Links, 0, E_States),
     receive after 100 -> pass end,
     %% The ldc object
-    LDCs = ld_cons:start(Epoch_Conss, Epoch_Changes),
+    LDCs = [_L1, _L2, _L3] =  ld_cons:start(Epoch_Conss, Epoch_Changes),
 
     %% Eager reliable broadcast
     ERBs = erb:start(Bebs),
@@ -107,7 +108,8 @@ tob() ->
 
     %% Debug mode
     dbg:tracer(),
-    dbg:p(A,m),
+    %dbg:p(_L1, m),
+    %dbg:p(A,m),
     
     receive after 100 -> pass end,
     A ! {broadcast, self(), coucou_le_monde}.

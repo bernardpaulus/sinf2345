@@ -50,8 +50,7 @@ init(Peers, Leader_Det, Beb, Link) ->
     Leader_Det ! {force_trust, self()},
     epoch_loop(#epoch_state{peers = Peers, down = Leader_Det, p2p_link = Link,
             beb = Beb, lastts = 0, prevts = 0, trusted = Leader, ts = rank(Peers),
-            n = 10}).
-            %n = length(Peers)}).
+            n = length(Peers)}).
 
 epoch_loop(State) ->
     Self= self(),
@@ -62,6 +61,13 @@ epoch_loop(State) ->
         {subscribe, Pid} ->
             #epoch_state{my_up = Up} = State,
             link(Pid),
+            epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)});
+
+        %% acknowledge subscription
+        {subscribe, From, Pid} = M ->
+            #epoch_state{my_up = Up} = State,
+            link(Pid),
+            From ! {ack, self(), M},
             epoch_loop(State#epoch_state{my_up = sets:add_element(Pid, Up)});
 
         %% receive a leader election message from meld (Down)
@@ -119,9 +125,30 @@ epoch_loop(State) ->
                     epoch_loop(State#epoch_state{ts = Ts + N});
                true ->
                     epoch_loop(State)
-            end
-        end.
+            end;
 
+        % reinit stuff: force new epoch by asking everyone to request a {trust}
+        {force_new_epoch, Self} ->
+            #epoch_state{beb = Beb} = State,
+            Beb ! {broadcast, self(), force_new_epoch},
+            epoch_loop(State);
+
+        % request a trust to the ld
+        {deliver, _, force_new_epoch} ->
+            #epoch_state{down = Leader_Det} = State,
+            Leader_Det ! {force_trust, self()},
+            epoch_loop(State)
+    end.
+
+% @spec (Epoch_Change :: pid()) -> New_Ts :: integer()
+% @doc forces the start of a new epoch and returns the new epoch
+reinit(Epoch_Change) ->
+    utils:subscribe(Epoch_Change), % ensure we will receive the startepoch
+    Epoch_Change ! {force_new_epoch, Epoch_Change},
+    receive 
+        {startepoch, New_Ts, Trusted} ->
+            {New_Ts, Trusted}
+    end.
 
 rank(Peers) -> rank(self(), Peers, 1).
 rank(_, [], _) -> {error, node_not_found};
