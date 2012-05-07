@@ -83,23 +83,6 @@ loop(State) ->
             self() ! {add, From_Pid, From_Acc, -Amount},
             self() ! {add, From_Pid, To_Acc, Amount},
 
-            %% QUESTION : takes 1% if any of the two account is negative or just from ?
-            case dict:find(From_Acc, Accounts) of
-                {ok, From_Money} ->
-                    case (From_Money - Amount < 0) of
-                        true ->
-                            %% Negative account, take 1% fee
-                            self() ! {add, self(), From_Acc, -(Amount - Amount*0.01)};
-                        false ->
-                            %% No change
-                            ok
-                    end;
-                
-                error ->
-                    %% What should we do ?
-                    false
-            end,
-
             case dict:find(To_Acc, Accounts) of
                 {ok, To_Money} ->
                     case To_Money - Amount < 0 of
@@ -130,6 +113,21 @@ loop(State) ->
             %% on an order to deliver their messages. (erlang sends are FIFO
             %% between any pair of correct processes)
             #bank_state{accounts = Accounts, to_ack = To_Ack} = State,
+            New_Money = case dict:find(Account_ID, Accounts) of
+                             {ok, From_Money} ->
+                                 case (From_Money + Amount < 0) of %% amount can be negative
+                                     true ->
+                                         %% Negative account, take 1% fee
+                                         (From_Money + Amount) - abs(Amount)*0.01;
+                                     false ->
+                                         From_Money + Amount
+                                 end;
+                             
+                             error ->
+                                 %% don't care, reply later
+                                 false
+                         end,
+            
             New_Accounts = case dict:is_key(Account_ID, Accounts) of
                                true ->
                                    Reply = {ok, account_updated, M},
@@ -137,9 +135,9 @@ loop(State) ->
                                    io:format("~p€ has been transfered to the account ~p", [Amount,Account_ID]),
                                    %% update the money on the account
                                    dict:update(Account_ID,
-                                               fun(Money) -> Money + Amount end,
+                                               fun(_Money) -> New_Money end,
                                                Accounts);
-
+                               
                                false ->
                                    Reply = {error, unknown_account, M},
                                    %% no account modified
