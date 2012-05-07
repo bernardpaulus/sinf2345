@@ -29,9 +29,6 @@ loop(State) ->
             TOB ! {broadcast, self(), M},
             To_Ack = dict:append(From_Pid, M, State#bank_state.to_ack),
             loop(State#bank_state{to_ack = To_Ack});
-            %#bank_state{accounts = Accounts} = State,
-            %New_Acc = dict:append(Account_ID, Amount, Accounts),
-            %loop(State#bank_state{accounts = New_Acc});
 
         % from the TOB: receive a deliver create account
         %  => create the account for real
@@ -67,6 +64,8 @@ loop(State) ->
                     From_Pid ! Reply,
                     To_Ack1 = dict:store(From_Pid, lists:delete(M, Msg_List),
                                     To_Ack),
+                    %% inform the user
+                    io:format("The account ~p€ has been created with ~p€", [Account_ID, Amount]),                                   
                     loop(State#bank_state{
                             accounts = Accounts1,
                             to_ack = To_Ack1});
@@ -134,6 +133,8 @@ loop(State) ->
             New_Accounts = case dict:is_key(Account_ID, Accounts) of
                                true ->
                                    Reply = {ok, account_updated, M},
+                                   %% inform the user
+                                   io:format("~p€ has been transfered to the account ~p", [Amount,Account_ID]),
                                    %% update the money on the account
                                    dict:update(Account_ID,
                                                fun(Money) -> Money + Amount end,
@@ -168,8 +169,21 @@ loop(State) ->
                 false ->
                     loop(State#bank_state{
                             accounts = New_Accounts})
-            end
+            end;
         
+        %% Check the money left on an account
+        %% This NOT a concurrent action but usefull to check the state of a node
+        {check, Account_ID} ->
+            #bank_state{accounts = Accounts} = State,
+            case dict:find(Account_ID, Accounts) of
+                {ok, _Money} ->
+                    % account exists in the db
+                    io:format("Account ~p has ~p€ left", [Account_ID, _Money]);
+                error ->
+                    % no account associated with Account_ID
+                    io:format("Error : unknown account ~p", [Account_ID])                
+            end,
+            loop(State)
                 
     end.
 
@@ -179,9 +193,12 @@ next_account([], Tot) -> Tot +1;
 next_account([_H | T], Tot) -> next_account(T, Tot+1).
                          
 
-create_user(Amount) ->
-    self() ! {broadcast_create, Amount}.
+create_account(Bank, Id, Amount) ->
+    Bank ! {create, self(), Id, Amount}.
 
-transfer_amount(From, To, Amount) ->
-    self() ! {broadcast_transfer, From, To, Amount}.
+transfer_money(Bank, From, To, Amount) ->
+    Bank ! {transfer, self(), From, To, Amount}.
     
+
+check_account(Bank, Id) ->
+    Bank ! {check, Id}.
