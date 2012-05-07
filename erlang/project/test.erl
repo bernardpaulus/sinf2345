@@ -56,17 +56,14 @@ launch(Nodes) ->
     receive after 200 -> pass end,
     [H | T] = bank:start(TOBs),
 
-    %% dbg:tracer(),
-    %% dbg:p(H,m),
-
-    io:format("Creating nodes 1 and 2"),
+    io:format("Creating accounts 1 and 2~n"),
     receive after 200 -> pass end,
     H ! {create, 1, 10},
     
     receive after 300 -> pass end,
     H ! {create, 2, 20},
     
-    io:format("Transfering money from #1 to #2"),
+    io:format("Transfering money from #1 to #2~n"),
     receive after 500 -> pass end,
     H ! {transfer, 1, 2, 5},
     [H | T].

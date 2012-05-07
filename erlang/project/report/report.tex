@@ -72,7 +72,7 @@ We implemented the \textbf{monarchical eventual leader detector} algorithm\footn
 This algorithm elect the leader with the highest rank among the alive nodes with the possibility to restore suspected nodes (eg: too slow to reply and were wrongly suspected as failing).
 
 \subsection*{Broadcasts}
-We used the \textbf{best effort broadcast} module\footnote{Module 3.1 p75 in reference book} for implement the broadcast messages between nodes.
+We used the \textbf{best effort broadcast} module\footnote{Module 3.1 p75 in reference book} to implement the broadcast messages between nodes.
 This module transmit messages to the adequate perfect links.
 As we want to handle failing nodes, we used a \textbf{reliable broadcast} algorithm\footnote{Module 3.2 p77 in reference book}.
 To ensure the \emph{agreement} property, we implemented the \textbf{eager reliable broadcast} algorithm\footnote{Algorithm 3.3 p80 in reference book}.
@@ -83,21 +83,21 @@ As we are working in a concurrent system, we need to reach to a \textbf{consensu
 We used the \textbf{epoch-change} abstraction\footnote{Module 5.3 p218 in reference book} to take a decision on a proposed value.
 This was implemented using the \textbf{leader based epoch change} algorithm\footnote{Algorithm 5.5 p219 in reference book}.
 We encounters majors problem using this algorithm due to an error in the reference book.
-This was discussed in an further errata of the book\footnote{See http://distributedprogramming.net/docs/Errata.pdf} we discovered only recently.
+This was discussed in a further errata of the book\footnote{See http://distributedprogramming.net/docs/Errata.pdf} we discovered only recently.
 However the authors made the non-explicit assumption that the local stack of messages is FIFO.
-That assumption was at first not verified and we realised later it is crucial for the success of the algorithm.
+That assumption was at first not verified and we realised only later it is crucial for the success of the algorithm.
 The implemented algorithm has been fixed using both the errata and the FIFO queuing process.\\
 
 In the attempt to obtain a consensus, we used the \textbf{epoch consensus} module\footnote{Module 5.4 p221 in reference book}.
 We implemented it using the \textbf{read write epoch consensus} algorithm\footnote{Algorithm 5.6 p223 in reference book}.
-The algorithm uses timestamp in a state value so as to serves the \emph{validity} and \emph{lock-in} or the epoch consensus.
+The algorithm uses timestamps in a state value so as to serves the \emph{validity} and \emph{lock-in} or the epoch consensus.
 The method used relies on a majority if correct processes and assumes we have at least more than the half on non-failing nodes.
 In the \textbf{leader driven consensus} algorithm\footnote{Algorithm 5.7 p225 in reference book}, we distinguish the instances of epoch consensus by their timestamp.
 Once we receive a new epoch event and need to switch the epoch, the algorithm
 aborts the running epoch consensus and initialize the next epoch consensus using the state of the previous one.
 
 \subsection*{Total order broadcast}
-For our banking application, we need to rely on a delivery order in case of concurrent transactions.
+For our banking application, the delivery order of messages is crucial (in case of concurrent transactions).
 In the previous broadcast abstraction, we used FIFO-order broadcast but we had no assumption on the delivery order.
 The \textbf{total order broadcast} module\footnote{Module 6.1 p283 in reference book} aims to fix this problem and order all messages, even those not from different senders.
 This module was implemented using the \textbf{consensus based total order broadcast} algorithm\footnote{Algorithm 6.1 p285 in reference book}.
@@ -112,7 +112,7 @@ The transactions are validated only once the initial node receives and acknowled
 \section{Manual}
 To launch the program you will need the \texttt{erlang} package installed on your computer.
 This as only been tested on Linux environments.
-Open a terminal an go to the folder containing the code.
+Open a terminal and go to the folder containing the code.
 Compile the code using the command \texttt{make}.\\
 
 To launch the code, use the following command :
@@ -126,15 +126,15 @@ Eshell V5.9.1  (abort with ^G)
 
 Banking application with 3 nodes
 
-Creating nodes 1 and 2
+Creating accounts 1 and 2
 Transfering money from #1 to #2
 2>
 \end{verbatim}
-At this state, three banks node are running.
+At this state, three banks nodes are running.
 The accounts 1 and 2 have been created with respectively 10 and 20 units of money (let's say € for the sake of simplicity).
 5€ have then been transfered from the account 1 to 2.\\
 
-For deeper testing, the users can interact with the bank nodes using the erlang shell interface.
+For deeper testing, the user can interact with the bank nodes using the erlang shell interface.
 Launch the shell prompt using simply the \texttt{erl} command and load the module using \texttt{test:main().} or \texttt{test:main(INT).} for a custom number of nodes.
 The result of the function needs is a list that needs to be stored in a list.
 \begin{verbatim}
@@ -142,7 +142,7 @@ The result of the function needs is a list that needs to be stored in a list.
 \end{verbatim}
 
 To create a new account use the command \texttt{bank:create\_account(\#BANK, \#ID, \#MONEY).}.
-For example \texttt{bank:create\_account(B, 3, 5).} to create a third account with 5€ on it using the second bank (don't forget the ending dot).\\
+For example \texttt{bank:create\_account(B, 3, 5).} to create a third account with 5€ on its account using the second bank (don't forget the ending dot).\\
 
 To transfer money from an account to another, use the command  \texttt{bank:transfer\_money(\#BANK, \#IDFROM, \#IDTO, \#MONEY).}.
 For example \texttt{bank:transfer\_money(C, 2, 3, 5).} to transfer 5€ from the second account to the third one using the third bank node.\\
@@ -162,8 +162,12 @@ Account 3 has 5€ leftok
 
 \section{Conclusion}
 The choice of Erlang as the chosen programming language allowed us to build a fully concurrent system.
-On the other hand, we couldn't use the proposed framework and had to reimplement several algorithms in the book.
+On the other hand, we couldn't use the proposed framework and had to reimplement several algorithms in the book.\\
+
 This project was quite interesting as it made us work with several different abstractions and different layers of our application.
 After this project, we believe we obtained a robust stack that could be reused to different applications.
+
+% Unfortunatly, we were still unable to get the last layer (total order broadcast) to work correctly and our banking application does not work correctly accordingly.
+% We believe we could demonstrate you the working parts of our application during the project defense.
 
 \end{document}
