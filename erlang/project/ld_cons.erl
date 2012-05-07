@@ -127,7 +127,7 @@ ldc_loop(State) ->
             #ldc_state{decided = D, my_ups = My_Ups, round = Round} = State,
             case D of
                 false ->
-                    io:format("~p decided ~p ~n", [self(), Val]),
+                    %io:format("~p decided ~p ~n", [self(), Val]),
                     [Up ! {decide, Val, Round} || Up <- My_Ups],
                     ldc_loop(State#ldc_state{decided = true, val = none})
             end;
