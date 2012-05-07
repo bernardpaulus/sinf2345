@@ -63,6 +63,7 @@ insert_condition() ->
         end).
     
 loop(State) ->
+    #tob_state{round = Round} = State,
     receive 
         {broadcast, _From, _Msg} = M ->
             #tob_state{seq = Seq, rb = RB} = State,
@@ -77,6 +78,8 @@ loop(State) ->
                 false -> 
                     State1 = State#tob_state{
                         unordered = sets:add_element(M, Unordered)},
+                    io:format("~p unordered: ~p~n", [self(),
+                            State1#tob_state.unordered]),
                     condition:check(State1),
                     loop(State1);
                 true -> 
@@ -84,7 +87,8 @@ loop(State) ->
             end;
 
         {unordered_not_empty_and_wait_false} ->
-            #tob_state{unordered = Unordered, consensus = Cons, round = Round} 
+            io:format("~p unordered not empty wait false~n", [self()]),
+            #tob_state{unordered = Unordered, consensus = Cons} 
                 = State,
             % initialize a new instance c.round of consensus
             ld_cons:reinit(Cons, Round),
@@ -95,7 +99,7 @@ loop(State) ->
 
         {decide, Decided, Round} -> % {decide, V, Round}
             #tob_state{delivered = Delivered, unordered = Unordered, 
-                my_ups = My_Ups, round = Round, wait = true} = State,
+                my_ups = My_Ups, wait = true} = State,
             io:format("~p tob deliver ~p~n", [self(), Decided]),
             % forall in sort(decided)
             [
