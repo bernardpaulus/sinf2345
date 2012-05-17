@@ -99,7 +99,6 @@ epoch_loop(State) ->
             #epoch_state{lastts = Lastts, trusted = Trusted, my_up = My_Up,
                 p2p_link = Link} = State,
             if From == Trusted, New_Ts > Lastts ->
-                    %io:format("~p start epoch ~p ~p~n", [Self, New_Ts, Trusted]),
                     [Up ! {startepoch, New_Ts, Trusted}
                         || Up <- sets:to_list(My_Up)],
                     epoch_loop(State#epoch_state{

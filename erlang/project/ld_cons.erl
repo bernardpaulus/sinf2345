@@ -101,6 +101,7 @@ ldc_loop(State) ->
         
         %% There is a new epoch, abort
         {startepoch, New_TS, Epoch_Chang_L} ->
+            io:format("~p start epoch ~p ~p~n", [Self, New_TS, Epoch_Chang_L]),
             #ldc_state{epoch_cons = EC, newts = Old_Ts, 
                 epoch_chang = Epoch_Chang} = State,
             EC ! {abort, Self, Old_Ts},
@@ -124,10 +125,12 @@ ldc_loop(State) ->
 
         %% Decide on a value
         {decide, Val, Ets} when State#ldc_state.ets == Ets ->
+            io:format("~p receive decide ~p ~n", [self(), Val]),
+            self() ! {test},
             #ldc_state{decided = D, my_ups = My_Ups, round = Round} = State,
             case D of
                 false ->
-                    %io:format("~p decided ~p ~n", [self(), Val]),
+                    io:format("~p decided ~p ~n", [self(), Val]),
                     [Up ! {decide, Val, Round} || Up <- My_Ups],
                     ldc_loop(State#ldc_state{decided = true, val = none})
             end;
