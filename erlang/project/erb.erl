@@ -18,7 +18,7 @@ start(Downs) when is_pid(hd(Downs)) ->
             _ <- lists:seq(1,length(Downs))]);
 
 start(Nodes) when is_atom(hd(Nodes)) ->
-    start(erb:start(Nodes));
+    start(beb:start(Nodes));
 
 start([]) -> [].
 

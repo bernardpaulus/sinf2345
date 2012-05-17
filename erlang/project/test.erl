@@ -49,12 +49,12 @@ launch(Nodes) ->
     Consensuss = ld_cons:start(RW_Epochs_Cons, Epoch_Changes),
     receive after 100 -> pass end,
     %% The total order boradcast
-    TOBs = tob:start(RBs, Consensuss),
+    _TOBs = tob:start(RBs, Consensuss),
     
     receive after 200 -> pass end,
     io:format("~n~nBanking application with ~p nodes~n~n",[length(Nodes)]),
     receive after 200 -> pass end,
-    [H | T] = bank:start(TOBs),
+    [H | T] = bank:start(RBs),
 
     io:format("Creating accounts 1 and 2~n"),
     receive after 200 -> pass end,

@@ -65,7 +65,8 @@ loop(State) ->
                     To_Ack1 = dict:store(From_Pid, lists:delete(M, Msg_List),
                                     To_Ack),
                     %% inform the user
-                    io:format("The account ~p€ has been created with ~p€", [Account_ID, Amount]),                                   
+                    io:format("The account ~p E has been created with ~p E~n",
+                                    [Account_ID, Amount]),
                     loop(State#bank_state{
                             accounts = Accounts1,
                             to_ack = To_Ack1});
@@ -77,26 +78,26 @@ loop(State) ->
 
         %% From the user : request a transfer of one account to the other
         {transfer, From_Pid, From_Acc, To_Acc, Amount} ->
-            #bank_state{accounts = Accounts} = State,
-            
             %% Remove from one account, add to the other
             self() ! {add, From_Pid, From_Acc, -Amount},
             self() ! {add, From_Pid, To_Acc, Amount},
+            loop(State);
 
-            case dict:find(To_Acc, Accounts) of
-                {ok, To_Money} ->
-                    case To_Money - Amount < 0 of
-                        true ->
-                            %% Negative account, take 1% fee
-                            self() ! {add, self(), To_Acc, -(Amount - Amount*0.01)};
-                        false ->
-                            %% No change
-                            ok
-                    end;
-                error ->
-                    %% What should we do ?
-                    false
-            end;
+            %case dict:find(To_Acc, Accounts) of
+            %    {ok, To_Money} ->
+            %        case To_Money - Amount < 0 of
+            %            true ->
+            %                %% Negative account, take 1% fee
+            %                self() ! {add, self(), To_Acc, -(Amount - Amount*0.01)};
+            %            false ->
+            %                %% No change
+            %                ok
+            %        end;
+            %    error ->
+            %        %% What should we do ?
+            %        false
+            %end,
+            %loop(State);
 
         %% From self() : request a change in the amount of an account
         {add, From_Pid, _Account, _Amount} = M ->
@@ -132,7 +133,8 @@ loop(State) ->
                                true ->
                                    Reply = {ok, account_updated, M},
                                    %% inform the user
-                                   io:format("~p€ has been transfered to the account ~p", [Amount,Account_ID]),
+                                   io:format("~p E has been transfered to the"
+                                        "account ~p~n", [Amount,Account_ID]),
                                    %% update the money on the account
                                    dict:update(Account_ID,
                                                fun(_Money) -> New_Money end,
@@ -176,10 +178,10 @@ loop(State) ->
             case dict:find(Account_ID, Accounts) of
                 {ok, _Money} ->
                     % account exists in the db
-                    io:format("Account ~p has ~p€ left", [Account_ID, _Money]);
+                    io:format("Account ~p has ~p left~n", [Account_ID, _Money]);
                 error ->
                     % no account associated with Account_ID
-                    io:format("Error : unknown account ~p", [Account_ID])                
+                    io:format("Error : unknown account ~p~n", [Account_ID])                
             end,
             loop(State)
                 
