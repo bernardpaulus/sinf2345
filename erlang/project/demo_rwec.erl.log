@@ -1,0 +1,35 @@
+1> Ret = demo_rwec:start(3).
+{econs,[<0.46.0>,<0.47.0>,<0.48.0>],
+       rs,
+       [<0.43.0>,<0.44.0>,<0.45.0>]}
+process <0.43.0> of nonode@nohost received
+{decide,bonjour,0}
+process <0.44.0> of nonode@nohost received
+{decide,bonjour,0}
+process <0.45.0> of nonode@nohost received
+{decide,bonjour,0}
+2> {_, ECs, _, _} = Ret.
+{econs,[<0.46.0>,<0.47.0>,<0.48.0>],
+       rs,
+       [<0.43.0>,<0.44.0>,<0.45.0>]}
+3> lists:foreach(fun(E) -> E ! {abort, self(), 0}, receive {aborted, State, Ets} -> rw_epoch_cons:reinit(E, Ets + 1, State) after 100 -> fail end end, ECs).
+ok
+4>  hd(ECs) ! {propose, boire_un_cafe}.
+{propose,boire_un_cafe}
+process <0.43.0> of nonode@nohost received
+{decide,bonjour,1}
+process <0.44.0> of nonode@nohost received
+{decide,bonjour,1}
+process <0.45.0> of nonode@nohost received
+{decide,bonjour,1}
+5> lists:foreach(fun(E) -> E ! {abort, self(), 1}, receive {aborted, {State_ts, _Val}, Ets} -> rw_epoch_cons:reinit(E, Ets + 1, {State_ts, bottom}) after 100 -> fail end end, ECs).
+ok
+6> hd(ECs) ! {propose, boire_un_cafe}.
+{propose,boire_un_cafe}
+process <0.43.0> of nonode@nohost received
+{decide,boire_un_cafe,2}
+process <0.45.0> of nonode@nohost received
+{decide,boire_un_cafe,2}
+process <0.44.0> of nonode@nohost received
+{decide,boire_un_cafe,2}
+7> 
